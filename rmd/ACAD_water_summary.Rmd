@@ -33,9 +33,7 @@ library(viridis)
 library(kableExtra)
 ```
 ```{r import}
-path = "C:/Users/Diana/Documents/NETN/Water/data"
-#path = "D:/NETN/R_Dev/Water/NCRNWaterViz/Data/NETN"
-netnwd <- importNCRNWater(Dir = path, 
+netnwd <- importNCRNWater(Dir = "../data", 
                           Data = "Water Data.csv", 
                           MetaData = "VizMetaData.csv")
 
@@ -1142,7 +1140,13 @@ for(i in seq_along(site_list_stream)){
 ## About the Sites
 ```{r leaflet, out.width="100%", message=F}
 
-source("../scripts/leaflet_tile_urls.R")
+NPSbasic<-"https://atlas-stg.geoplatform.gov/styles/v1/atlas-user/ck58pyquo009v01p99xebegr9/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1IjoiYXRsYXMtdXNlciIsImEiOiJjazFmdGx2bjQwMDAwMG5wZmYwbmJwbmE2In0.lWXK2UexpXuyVitesLdwUg"
+
+NPSimagery="https://atlas-stg.geoplatform.gov/styles/v1/atlas-user/ck72fwp2642dv07o7tbqinvz4/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1IjoiYXRsYXMtdXNlciIsImEiOiJjazFmdGx2bjQwMDAwMG5wZmYwbmJwbmE2In0.lWXK2UexpXuyVitesLdwUg"
+
+NPSslate="https://atlas-stg.geoplatform.gov/styles/v1/atlas-user/ck5cpvc2e0avf01p9zaw4co8o/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1IjoiYXRsYXMtdXNlciIsImEiOiJjazFmdGx2bjQwMDAwMG5wZmYwbmJwbmE2In0.lWXK2UexpXuyVitesLdwUg"
+
+NPSlight="https://atlas-stg.geoplatform.gov/styles/v1/atlas-user/ck5cpia2u0auf01p9vbugvcpv/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1IjoiYXRsYXMtdXNlciIsImEiOiJjazFmdGx2bjQwMDAwMG5wZmYwbmJwbmE2In0.lWXK2UexpXuyVitesLdwUg"
 
 bbox <- read.csv("../boundboxes.csv") #lat/long coordinates and zoom level for each park 
 site_csv <- read.csv(file = '../SiteInfo.csv') #site names, codes, and descriptions for popup 
@@ -1222,11 +1226,11 @@ leaflet() %>%
     #              lat1 = bbox[bbox$ParkCode == params$park,]$LatN,
     #              lat2 = bbox[bbox$ParkCode == params$park,]$LatS) %>%
     # add map tiles
-    addTiles(group="Map", urlTemplate = NPSbasic, attribution = NPSAttrib,
+    addTiles(group="Map", urlTemplate = NPSbasic, 
              options = providerTileOptions(minZoom = bbox$minZoom[bbox$ParkCode == params$park])) %>%
-    addTiles(group="Imagery", urlTemplate = NPSimagery, attribution=NPSAttrib) %>%
-    addTiles(group="Light", urlTemplate = NPSlight, attribution = NPSAttrib) %>%
-    addTiles(group="Slate", urlTemplate = NPSslate, attribution = NPSAttrib) %>%
+    addTiles(group="Imagery", urlTemplate = NPSimagery) %>%
+    addTiles(group="Light", urlTemplate = NPSlight) %>%
+    addTiles(group="Slate", urlTemplate = NPSslate) %>%
     # add button to control map tiles
     addLayersControl(map = ., baseGroups = c("Map","Imagery","Light", "Slate"),
                      options = layersControlOptions(collapsed=T)) %>%
