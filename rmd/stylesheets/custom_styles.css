@@ -1,0 +1,177 @@
+/* Water summaries stylesheet */
+
+/*.tabset{
+  color:black;
+  font-size: 16px;
+} */
+
+/* Body and headers */
+body {
+  font-family: "FrutigerLTStd-Black","Arial",Arial,sans-serif;
+  font-size: 14px;
+  color: black;
+}
+
+p {
+  font-family: "NPSRawlinsonOTTwo","Times New Roman",serif;
+  font-size: 16px;
+  margin: 0;
+}
+
+#about-the-data p {
+  margin: 0 0 10px 0;
+}
+
+/* Park name */
+h1 {
+  font-family: "FrutigerLTStd-Black","Arial",Arial,sans-serif;
+  font-size: 20px;
+  font-weight: bold;
+  color: black;
+  margin: 20px 0;
+}
+
+/*Tab titles and 'About' headings*/
+h2 {
+  font-family: "FrutigerLTStd-Black","Arial",Arial,sans-serif;
+  font-size: 18px;
+  font-weight: bold;
+  color: black;
+  margin: 5px 0 10px 0;
+}
+
+summary > h2 {
+  margin: 0;
+  display: inline-block; /* so it shows up inline with details arrow */
+}
+
+/* 'About' subheadings */
+h3 {
+  font-family: "FrutigerLTStd-Black","Arial",Arial,sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  color: black;
+}
+
+/*h3.title{
+  padding-bottom:10px
+}
+*/
+
+/* Figs and legend title */
+h4 {
+  font-family: "FrutigerLTStd-Black","Arial",Arial,sans-serif;
+  font-size:14px;
+  font-weight: bold;
+  color: black;
+  /*color: #555;*/
+}
+
+/* Header font */
+h5 {
+  font-family: "FrutigerLTStd-Black","Arial",Arial,sans-serif;
+  font-size:12px;
+  padding:0px 0px 0px 0px;
+  margin:0px 0px 0px 0px;
+}
+
+/* Banner */
+.banner{
+  background: black;
+  height: 105px;
+  width: auto;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.header{
+ height: 100px;
+ width: 930px;
+ margin-left: auto;
+ margin-right: auto;
+}
+
+#col-left-header{
+  float:left;
+  width: 68%;
+  padding: 5px 0;
+}
+
+#col-right-header{
+  float:right;
+  width: 7%;
+  padding: 5px 0;
+}
+
+#col-middle-header{
+  float:right;
+  text-align:left;
+  width: 25%;
+  padding: 5px 0;
+}
+
+.header img{
+  display: inline-block;
+  height: 90px;
+  position: relative;
+}
+ 
+.header h5 {
+  position: relative;
+  text-align: left;
+  color: white;
+  font-size: 14px;
+  padding: 2px 10px 1px 5px;
+  margin:4px 5px;
+  font-family: "Arial",Arial,sans-serif;
+}
+
+/* Footer */
+.footer {
+ height: 50px;
+ font-family: "FrutigerLTStd-Light",FrutigerLTStd-Light, sans-serif;
+}
+
+/* Navbar */
+.navbar {
+ visibility: hidden
+}
+
+/* SVG legend 
+.legend{
+  margin-left: 20px;
+  margin-bottom: 10px;
+  border-style: solid;
+  border-color: #e2e2e2;
+  border-width: 1px;
+  padding: 10px;
+} */
+
+/* Tabset pills */
+.nav>li>a {
+    position: relative;
+    display: block;
+    padding: 10px 15px;
+    color: #3288bd;
+    font-family: "FrutigerLTStd-Light",FrutigerLTStd-Light, sans-serif;
+    font-size: 16px;
+}
+.nav-pills>li.active>a, .nav-pills>li.active>a:hover, .nav-pills>li.active>a:focus {
+    color: #ffffff;
+    background-color: #3288bd;
+}
+
+/* Tab content */
+/*.tab-content {
+  padding-top: 10px;
+} */
+
+/* Remove extra space below figures */
+.html-widget{
+  margin-bottom:0px;
+}
+
+/* Leaflet legend */
+.legend i {
+  opacity: 1;
+}
