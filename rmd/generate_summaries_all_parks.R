@@ -21,10 +21,10 @@ compileNETNdata(path = "./data",
 lnetn_parks <- c("MABI", "MIMA", "MORR", "ROVA", "SAGA", "SARA", "WEFA")
 render_LNETN_reports <- function(park_list){
                           render(input = paste0(indir, rmd),
-                          params = list(park = park_list, nutrient = TRUE),
+                          params = list(park = park_list, nutrient = FALSE),
                           output_file = paste0("NETN_water_summary_", 
-                            park_list, "_2019", 
-                            #format(Sys.time(), '%b_%Y'),
+                            park_list, "_", #2019", 
+                            format(Sys.time(), '%b_%Y'),
                             ".html"),
                           output_dir = outdir)
   
@@ -32,7 +32,7 @@ render_LNETN_reports <- function(park_list){
 
 map(lnetn_parks, ~render_LNETN_reports(.))
 
-render_LNETN_reports("SAIR")
+render_LNETN_reports("SAGA")
 
 #----- Report for ACAD
 render_ACAD_report <- function(park_list, year, nutrient){
