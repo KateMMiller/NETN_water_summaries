@@ -10,10 +10,10 @@ output:
 params:
   park: MABI
   from: 2006
-  to: 2018
-  current: 2019
+  to: 2020
+  current: 2021
   cat: physical
-  nutrient: TRUE
+  nutrient: FALSE
 ---
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, fig.pos = "h")
@@ -71,7 +71,7 @@ site_key <- data.frame(Site = getSiteInfo(netnwd, parkcode = parkcode, info = "S
 
 # Turn on comp tab if park has more than one site
 show_comp <- ifelse(length(site_list) > 1, TRUE, FALSE)
-
+show_comp_n <- ifelse(show_comp == TRUE & params$nutrient == TRUE, TRUE, FALSE)
 ```
 
 ```{r waterboxplot}
@@ -238,6 +238,7 @@ waterboxplot <- function(sitecode, charname) {
 
   }
 ```
+
 ```{r site_comp_setup, echo = F, warning = F, message = F, eval = show_comp}
 ##------------------------------------------------------------------------------
 ## Physical site comp setup
@@ -282,7 +283,9 @@ for (i in 1:length(num_sites)){
 
 # Move legend down slightly and make it horizontal
 comp_plots_p_final <- comp_plots_p_final %>% layout(legend = list(x = 0, y = -0.05, orientation = "h"))
+```
 
+```{r site_comp_setup_n, echo = F, warning = F, message = F, eval = show_comp_n, erro = TRUE}
 ##------------------------------------------------------------------------------
 ## Nutrients site comp setup
 ##------------------------------------------------------------------------------
@@ -349,6 +352,7 @@ fig_cap_p <- htmltools::withTags(body(
 
 cat(as.character(fig_cap_p))
 ```
+
 ```{r p_site_comp_plots, results = 'show', out.height = "90%", eval = show_comp}
 comp_plots_p_final
 
@@ -407,7 +411,9 @@ plot_list_p <- map2(site_char_list_p$site_code, site_char_list_p$char_name,
                               charname = .y, year_current = params$current,
                               year_historic = params$from, legend = "bottom")) %>% 
              set_names(site_char_list_p$site_code)
+```
 
+```{r site_tab_setup_n, warning = F, message = F, error = T, eval = show_comp_n}
 ##------------------------------------------------------------------------------
 ## Nutrient site tab setup                            
 ##------------------------------------------------------------------------------
@@ -449,7 +455,8 @@ for(i in seq_along(site_list)){
                           info = "SiteName")
   
   num_plots_p <- length(plot_list_p[names(plot_list_p) == site])
-  num_plots_n <- length(plot_list_n[names(plot_list_n) == site])
+  num_plots_n <- ifelse(exists("plot_list_n") & params$nutrient == TRUE, 
+                        length(plot_list_n[names(plot_list_n) == site]), 0)
   
   plot_title <- htmltools::withTags(h2('Historic', paste0('(',from, '–', to,')'),
                                                 'vs. Current', paste0('(',current,')'), 'Measurements'))
@@ -495,12 +502,13 @@ for(i in seq_along(site_list)){
                                   orientation = "h"))
   
   # Nutrient subplot
-  subplots_n <- subplot(plot_list_n[names(plot_list_n) == site][1:num_plots_n],
+  subplots_n <- if(params$nutrient == TRUE & exists("plot_list_n")){
+                subplot(plot_list_n[names(plot_list_n) == site][1:num_plots_n],
                       titleY = TRUE, titleX = FALSE, margin = 0.05,
                       nrows = ifelse(num_plots_n>4, 3, 2),
                       which_layout = 1) %>% 
-             layout(legend = list(x = 0, y = ifelse(num_plots_n>4, -0.05, -0.08),
-                                  orientation = "h"))
+                layout(legend = list(x = 0, y = ifelse(num_plots_n>4, -0.05, -0.08),
+                                  orientation = "h"))}
 
 ##------------------------------------------------------------------------------
 ## Legend - physical                           
@@ -555,6 +563,7 @@ for(i in seq_along(site_list)){
 ##------------------------------------------------------------------------------
   # Logical way to find and turn on poor water quality and WQ thresholds
   # First turn them all off
+  if(params$nutrient == TRUE & !is.null(subplots_n)){
   for (i in seq(1:length(subplots_n$x$data))) {
     subplots_n$x$data[[i]]$showlegend <- FALSE
   }
@@ -612,7 +621,7 @@ for(i in seq_along(site_list)){
   if(!is.na(find_wqt)){
     subplots_n$x$data[[find_wqt]]$showlegend <- TRUE
     }
-  
+  } #end of if(params$nutrient == TRUE & !is.null(subplots_n))
 ##------------------------------------------------------------------------------
 ## Knit tabs                           
 ##------------------------------------------------------------------------------
