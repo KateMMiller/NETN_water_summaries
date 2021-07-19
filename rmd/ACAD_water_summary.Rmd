@@ -10,10 +10,10 @@ output:
 params:
   park: ACAD
   from: 2006
-  to: 2019
-  current: 2020
+  to: 2020
+  current: 2021
   cat: physical
-  nutrient: TRUE
+  nutrient: FALSE
 ---
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, fig.pos = "h")
@@ -32,6 +32,7 @@ library(leaflet)
 library(viridis)
 library(kableExtra)
 ```
+
 ```{r import}
 netnwd <- importNCRNWater(Dir = "../data", 
                           Data = "Water Data.csv", 
@@ -87,7 +88,7 @@ nutrients_stream <- c("TP_ugL", "TN_mgL", "ANC_ueqL")
 
 # Turn on comp tab if park has more than one site
 show_comp <- ifelse(length(site_list) > 1, TRUE, FALSE)
-
+show_comp_n <- ifelse(show_comp == TRUE & params$nutrient == TRUE, TRUE, FALSE)
 ```
 
 ```{r waterboxplot}
@@ -302,7 +303,9 @@ for (i in 1:length(num_sites_lake_p)){
 
 # Move legend down slightly and make it horizontal
 comp_plots_lake_p_final <- comp_plots_lake_p_final %>% layout(legend = list(x = 0, y = -0.05, orientation = "h"))
+```
 
+```{r lake_comp_setup_n, eval = show_comp_n, echo = F, warning = F, message = F, error = TRUE}
 ##------------------------------------------------------------------------------
 ## LAKES - Nutrients site comp setup
 ##------------------------------------------------------------------------------
@@ -372,6 +375,7 @@ fig_cap_comp_p <- htmltools::withTags(body(
 
 cat(as.character(fig_cap_comp_p))
 ```
+
 ```{r p_site_comp_plots, results = 'show', out.height = "90%", eval = show_comp}
 comp_plots_lake_p_final
 
@@ -380,7 +384,7 @@ comp_plots_lake_p_final
 # Adding cat("\n") does not work
 ```
 
-```{r lake_n_site_comp, results = 'asis', include = show_comp}
+```{r lake_n_site_comp, results = 'asis', eval = show_comp_n, include = show_comp_n}
 ##------------------------------------------------------------------------------
 ## LAKES - Nutrient site comp plots                            
 ##------------------------------------------------------------------------------
@@ -405,7 +409,7 @@ fig_cap_comp_n <- htmltools::withTags(body(
 # Figure caption
 if(params$nutrient==TRUE) {cat(as.character(fig_cap_comp_n))}
 ```
-```{r n_site_comp_plots, results = 'show', out.height = "90%", eval = show_comp}
+```{r n_site_comp_plots, results = 'show', out.height = "90%", eval = show_comp_n, include = show_comp_n}
 if(params$nutrient==TRUE) {comp_plots_lake_n_final}
 ```
 
@@ -437,7 +441,9 @@ plot_list_lake_p <- map2(char_df_lake_p$site_code, char_df_lake_p$char_name,
                               charname = .y, year_current = params$current,
                               year_historic = params$from, legend = "bottom")) %>% 
                     set_names(char_df_lake_p$site_code)
+```
 
+```{r lake_site_tab_setup_n, warning = F, message = F, eval = show_comp_n, include = show_comp_n}
 ##------------------------------------------------------------------------------
 ## LAKES - Nutrient site tab setup                          
 ##------------------------------------------------------------------------------
@@ -475,7 +481,7 @@ for(i in seq_along(site_list_lake)){
                           info = "SiteName")
   
   num_plots_p <- length(plot_list_lake_p[names(plot_list_lake_p) == site])
-  num_plots_n <- length(plot_list_lake_n[names(plot_list_lake_n) == site])
+  num_plots_n <- ifelse(exists("plot_list_lake_n") & params$nutrient == TRUE, length(plot_list_lake_n[names(plot_list_lake_n) == site]), 0)
   
   plot_title <- htmltools::withTags(h2('Historic', paste0('(',from, '–', to,')'),
                                                 'vs. Current', paste0('(',current,')'), 'Measurements'))
@@ -520,12 +526,13 @@ for(i in seq_along(site_list_lake)){
                                   orientation = "h"))
   
   # Nutrient subplot
-  subplots_n <- subplot(plot_list_lake_n[names(plot_list_lake_n) == site][1:num_plots_n],
+  subplots_n <- if(params$nutrient == TRUE & exists("plot_list_lake_n")){
+             subplot(plot_list_lake_n[names(plot_list_lake_n) == site][1:num_plots_n],
                       titleY = TRUE, titleX = FALSE, margin = 0.05,
                       nrows = ifelse(num_plots_n>4, 3, 2),
                       which_layout = 1) %>% 
              layout(legend = list(x = 0, y = ifelse(num_plots_n>4, -0.05, -0.08),
-                                  orientation = "h"))
+                                  orientation = "h"))}
 
 ##------------------------------------------------------------------------------
 ## Legend - physical                          
@@ -580,6 +587,7 @@ for(i in seq_along(site_list_lake)){
 ##------------------------------------------------------------------------------
   # Logical way to find and turn on poor water quality and WQ thresholds
   # First turn them all off
+  if(params$nutrient == TRUE & !is.null(subplots_n)){
   for (i in seq(1:length(subplots_n$x$data))) {
     subplots_n$x$data[[i]]$showlegend <- FALSE
   }
@@ -637,7 +645,7 @@ for(i in seq_along(site_list_lake)){
   if(!is.na(find_wqt)){
     subplots_n$x$data[[find_wqt]]$showlegend <- TRUE
     }
-  
+  } # end of if(params$nutrient == T & !is.null(subplots_n))
 ##------------------------------------------------------------------------------
 ## Knit tabs                          
 ##------------------------------------------------------------------------------
@@ -741,7 +749,8 @@ for (i in 1:length(num_sites_stream_p)){
 
 # Move legend down slightly and make it horizontal
 comp_plots_stream_p_final <- comp_plots_stream_p_final %>% layout(legend = list(x = 0, y = -0.05, orientation = "h"))
-
+```
+```{r stream_comp_setup_n, echo = F, warning = F, message = F, eval = show_comp_n, error = TRUE}
 ##------------------------------------------------------------------------------
 ## STREAMS - Nutrients site comp setup
 ##------------------------------------------------------------------------------
@@ -807,7 +816,7 @@ comp_plots_stream_p_final
 # Adding cat("\n") does not work
 ```
 
-```{r stream_n_site_comp, results = 'asis', include = show_comp}
+```{r stream_n_site_comp, results = 'asis', eval = show_comp_n, error = TRUE}
 ##------------------------------------------------------------------------------
 ## STREAMS - Nutrient site comp plots                            
 ##------------------------------------------------------------------------------
@@ -849,7 +858,9 @@ plot_list_stream_p <- map2(char_df_stream_p$site_code, char_df_stream_p$char_nam
                               charname = .y, year_current = params$current,
                               year_historic = params$from, legend = "bottom")) %>%
              set_names(char_df_stream_p$site_code)
+```
 
+```{r stream_site_tab_setup_n, echo = F, warning = F, message = F, eval = show_comp_n, error = TRUE}
 ##------------------------------------------------------------------------------
 ## STREAMS - Nutrient site tab setup
 ##------------------------------------------------------------------------------
@@ -896,7 +907,8 @@ for(i in seq_along(site_list_stream)){
                           info = "SiteName")
   
   num_plots_p <- length(plot_list_stream_p[names(plot_list_stream_p) == site])
-  num_plots_n <- length(plot_list_stream_n[names(plot_list_stream_n) == site])
+  num_plots_n <- ifelse(params$nutrients == TRUE & exists("plot_list_stream_n"), 
+                        length(plot_list_stream_n[names(plot_list_stream_n) == site]), 0)
   
   plot_title <- htmltools::withTags(h2('Historic', paste0('(',from, '–', to,')'),
                                                 'vs. Current', paste0('(',current,')'), 'Measurements'))
@@ -942,12 +954,13 @@ for(i in seq_along(site_list_stream)){
                                   orientation = "h"))
   
   # Nutrient subplot
-  subplots_n <- subplot(plot_list_stream_n[names(plot_list_stream_n) == site][1:num_plots_n],
-                      titleY = TRUE, titleX = FALSE, margin = 0.05,
-                      nrows = ifelse(num_plots_n>4, 3, 2),
-                      which_layout = 1) %>% 
-             layout(legend = list(x = 0, y = ifelse(num_plots_n>4, -0.05, -0.08),
-                                  orientation = "h"))
+  subplots_n <- if(params$nutrient == TRUE & exists("plot_list_stream_n")){ 
+                 subplot(plot_list_stream_n[names(plot_list_stream_n) == site][1:num_plots_n],
+                         titleY = TRUE, titleX = FALSE, margin = 0.05,
+                         nrows = ifelse(num_plots_n>4, 3, 2),
+                         which_layout = 1) %>% 
+                layout(legend = list(x = 0, y = ifelse(num_plots_n>4, -0.05, -0.08),
+                                     orientation = "h"))}
 
   # Aunt Betty Inlet legend settings test
   # subplots_n$x$data[[4]]$showlegend <- FALSE
@@ -1006,6 +1019,7 @@ for(i in seq_along(site_list_stream)){
 ##------------------------------------------------------------------------------
   # Logical way to find and turn on poor water quality and WQ thresholds
   # First turn them all off
+  if(params$nutrient == TRUE & !is.null(subplots_n)){
   for (i in seq(1:length(subplots_n$x$data))) {
     subplots_n$x$data[[i]]$showlegend <- FALSE
   }
@@ -1076,7 +1090,7 @@ for(i in seq_along(site_list_stream)){
   # Quick fix to get historic range legend item to appear. Just turning on [[1]]
   # doesn't work. Unclear why - it appears as TRUE in the trace data. 
   subplots_n$x$data[[2]]$showlegend <- TRUE
-  
+  } #end of if(params$nutrient == TRUE & !is.null(subplots_n))
 ##------------------------------------------------------------------------------
 ## Knit tabs                          
 ##------------------------------------------------------------------------------
