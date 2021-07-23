@@ -180,7 +180,7 @@ lake_epa <- data.frame(
             kable(col.names = c(
               "Lakes",
               "TP (ug/L)",
-              "TN (ug/L)",
+              "TN (mg/L)",
               "Chl. A (ug/L)",
               "Turbidity (NTU)"), escape = F) %>% 
             kable_styling() %>% 
@@ -198,7 +198,7 @@ stream_epa <- data.frame(
             kable(col.names = c(
               "Streams",
               "TP (ug/L)",
-              "TN (ug/L)",
+              "TN (mg/L)",
               "Salinity as Conductivity (ug/L)"), escape = F) %>% 
             kable_styling() %>% 
             collapse_rows()
