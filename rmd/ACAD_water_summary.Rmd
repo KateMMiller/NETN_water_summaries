@@ -10,10 +10,10 @@ output:
 params:
   park: ACAD
   from: 2006
-  to: 2020
-  current: 2021
+  to: 2019
+  current: 2020
   cat: physical
-  nutrient: FALSE
+  nutrient: TRUE
 ---
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, fig.pos = "h")
@@ -907,7 +907,7 @@ for(i in seq_along(site_list_stream)){
                           info = "SiteName")
   
   num_plots_p <- length(plot_list_stream_p[names(plot_list_stream_p) == site])
-  num_plots_n <- ifelse(params$nutrients == TRUE & exists("plot_list_stream_n"), 
+  num_plots_n <- ifelse(params$nutrient == TRUE & exists("plot_list_stream_n"), 
                         length(plot_list_stream_n[names(plot_list_stream_n) == site]), 0)
   
   plot_title <- htmltools::withTags(h2('Historic', paste0('(',from, '–', to,')'),
