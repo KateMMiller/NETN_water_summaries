@@ -97,7 +97,7 @@ htmltools::withTags(body(
 <br>
 <details open><summary><h2>Field Measurement Metrics</h2></summary>
 
-```{r physical, results='asis', include = physical}
+```{r physical, results='asis'}
 
 #cat("<h2>About the Metrics:</h2>", "\n")
 #DO, pH, Spc, temp, discharge
