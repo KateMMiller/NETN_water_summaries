@@ -8,7 +8,7 @@ output:
       in_header: "header_manual.html" 
       after_body: "footer.html"
 params:
-  park: MABI # 4-letter park code
+  park: WEFA # 4-letter park code
   from: 2006 # first year of data
   current: 2022 # current year of data
   nutrient: TRUE # T plots nutrients, but should be complete for season
@@ -40,7 +40,7 @@ library(magick)
 # library(gridExtra) #grid.arrange
 # library(ggpubr) # another way to grab ggplot legend
 ```
-```{r import}
+```{r import, cache = T}
 netnwd <- importNCRNWater(Dir = "../data",
                           Data = "Water Data.csv",
                           MetaData = "VizMetaData.csv")
@@ -55,7 +55,7 @@ netnwd <- importNCRNWater(Dir = "../data",
 ## Global variables
 ##------------------------------------------------------------------------------
 # Variables for cat asis code, which can't take params
-# parkcode = "MABI"
+# parkcode = "WEFA"
 # current = 2022
 # from = 2006
 # to = 2021
@@ -273,7 +273,7 @@ comp_plots_p <- purrr::map2(char_list_p, legend_list_p,
                                      sitecode = site_list,
                                      charname = .x,
                                      legend = .y)) |> 
-              set_names(char_list_p) #name plots to refer to them by char name
+                set_names(char_list_p) #name plots to refer to them by char name
 
 # MABI has stream and pond sites in comparison, so have fewer comp plots
 hts = if(parkcode == "MABI"){c(0.3, 0.35)} else {c(0.3, 0.35, 0.3)}
@@ -322,7 +322,7 @@ comp_plots_n <- purrr::map2(char_list_n, legend_list_n,
                                           charname = .x,
                                           legend = .y)) |> 
                           #facet_wrap(~Characteristic) |> 
-              set_names(char_list_n) #name plots to refer to them by char name
+                set_names(char_list_n) #name plots to refer to them by char name
 
 # Use plot list to create matrix of plots (plotly subplot)
 comp_plots_n_final <- subplot(comp_plots_n[1:length(comp_plots_n)],
@@ -460,7 +460,7 @@ plot_list_n <-
     map2(site_char_list_n$Site, site_char_list_n$Characteristic, 
          ~waterbands(netnwd, parkcode = parkcode, sitecode = .x, 
                      charname = .y, year_current = current,
-                     year_historic = from, legend = "bottom")) |> 
+                     year_historic = from, legend = "none")) |> 
          set_names(site_char_list_n$Site)
 
 } else {
@@ -531,8 +531,6 @@ for(i in seq_along(site_list)){
                 #       orientation = "h"))
   
   # Nutrient subplot
-plot_list_n
-
     subplots_n <- if(nutrient == TRUE & exists("plot_list_n")){
                   subplot(plot_list_n[names(plot_list_n) == site][1:num_plots_n],
                           titleY = TRUE, titleX = FALSE, margin = 0.05,
@@ -557,13 +555,15 @@ plot_list_n
     template <- paste0(
       "## {{site_name}}\n", #create tab with site name
       #create chunk and set chunk options (height, width, echo)
-      "```{r {{site_p}}, fig.height=",fig_height_p, ", fig.width=", fig_width,", echo = FALSE}\n",
+      "```{r {{site_p}}, fig.height=", fig_height_p, ", fig.width=", fig_width,", echo = FALSE}\n",
       "plot_title\n", #title of tab
       "\n",
       "fig_cap_p\n", #caption
       "subplots_p\n", #physical subplots
       "\n",
-      "legimg", "\n",
+      "legimg", 
+      "\n",
+      
       "```\n", #close chunk
       "\n"
   )
@@ -576,6 +576,10 @@ plot_list_n
       "\n",
       "fig_cap_p\n", #caption
       "subplots_p\n", #physical subplots
+      "\n",
+      "legimg", 
+      "\n",
+      
       "```\n",
       "\n", #this break is necessary for the subtabs to knit correctly
       "### Lab Chemistry\n", #nutrient subtab
@@ -584,6 +588,10 @@ plot_list_n
       "\n",
       "fig_cap_n\n", #caption
       "subplots_n\n", #nutrient subplots
+      "\n",
+      "legimg", 
+      "\n",
+      
       "```\n",
       "\n"
   )
@@ -648,19 +656,22 @@ markerLegendHTML <- function(IconSet) {
     # Add each icon for ion library icons:
     for (Icon in IconSet) {
         if (Icon[["library"]] == "ion") {
-        legendHtml<- paste0(legendHtml,
-                            # marker and marker label div
-                            "<div style='width: auto; height: 45px; display: flex; align-items: center;'>",
-                             # awesome marker div
-                             "<div style='position: relative; display: inline-block; width: 35px; height: 45px;' 
-                               class='awesome-marker-icon-",Icon[["markerColor"]]," awesome-marker'>",
-                               # add icons and set color
-                               # class='ion ion-waterdrop icon-white' selects the correct library, icon, and color
-                               "<i style='margin-left: 4px; margin-top: 11px' class= 'ion ion-",Icon[["icon"]]," icon-",Icon[["iconColor"]],"'></i>",
-                             "</div>", # close awesome marker div
-                             # legend label div - use name set in IconSet
-                             "<div style='position: relative; display: inline-block; margin-left: 8px;'>", names(IconSet)[n] ,"</div>",
-                           "</div>") # close marker/marker label div    
+        legendHtml<- 
+          paste0(legendHtml,
+          # marker and marker label div
+          "<div style='width: auto; height: 45px; display: flex; align-items: center;'>",
+          # awesome marker div
+          "<div style='position: relative; display: inline-block; width: 35px; height: 45px;' 
+          class='awesome-marker-icon-",Icon[["markerColor"]]," awesome-marker'>",
+          # add icons and set color
+          # class='ion ion-waterdrop icon-white' selects the correct library, icon, and color
+          "<i style='margin-left: 4px; margin-top: 11px' class= 'ion ion-",
+            Icon[["icon"]]," icon-",Icon[["iconColor"]],"'></i>",
+          "</div>", # close awesome marker div
+          # legend label div - use name set in IconSet
+          "<div style='position: relative; display: inline-block; margin-left: 8px;'>", 
+            names(IconSet)[n] ,"</div>",
+          "</div>") # close marker/marker label div    
         }
         n <- n + 1
     } 
