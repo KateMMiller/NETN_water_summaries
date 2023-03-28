@@ -9,7 +9,7 @@ output:
       after_body: "footer.html"
     self_contained: yes
 params:
-  park: SARA # 4-letter park code
+  park: MIMA # 4-letter park code
   from: 2006 # first year of data
   current: 2022 # current year of data
   nutrient: TRUE # T plots nutrients, but should be complete for season
@@ -61,7 +61,7 @@ source("fake_bands_legend_code.R") # creates legend with fake data
 ## Global variables
 ##------------------------------------------------------------------------------
 # Variables for cat asis code, which can't take params
-# parkcode = "WEFA"
+# parkcode = "MIMA"
 # current = 2022
 # from = 2006
 # to = 2021
@@ -261,24 +261,32 @@ waterboxplot <- function(data = wdata_full, parkcode, sitecode, charname) {
 # List of physical parameters in park
 char_list_p <- sort(unique(wdata_full$Characteristic[wdata_full$Category == 'physical']))
 
-char_list_p <- if(parkcode == "MABI"){char_list_p[!(char_list_p %in% "Discharge_cfs")]
+char_list_p_comp <- if(parkcode %in% c("MABI", "MIMA")){char_list_p[!(char_list_p %in% "Discharge_cfs")]
   } else {char_list_p}
 
 # Turn off all legends except last in list to remove legend duplicates from subplot
-legend_list_p <- c(rep("none", length(char_list_p)-1), "bottom")
+legend_list_p <- c(rep("none", length(char_list_p_comp)-1), "bottom")
 
 # Create list of plots comparing physical parameters across all sites in park
-comp_plots_p <- purrr::map2(char_list_p, legend_list_p,
+comp_plots_p <- purrr::map2(char_list_p_comp, legend_list_p,
                             ~watersite_comps(netnwd, year = current, 
                                      parkcode = parkcode, 
                                      sitecode = site_list,
                                      charname = .x,
-                                     legend = .y)) |> 
-                set_names(char_list_p) #name plots to refer to them by char name
+                                     legend = .y) + 
+                              labs(color = NULL, fill = NULL, shape = NULL, linetype = NULL)) |> 
+                set_names(char_list_p_comp) #name plots to refer to them by char name
+
+# leg_comp_p <- as_ggplot(get_legend(
+#   watersite_comps(netnwd, year = current, parkcode = parkcode,
+#                   sitecode = site_list, 
+#                   charname = char_list_p[length(char_list_p)],
+#                   legend = 'bottom'# take last instead of discharge
+#                   )))
 
 # MABI has stream and pond sites in comparison, so have fewer comp plots
-hts = if(parkcode == "MABI"){c(0.32, 0.35)} else {c(0.32, 0.35, 0.32)}
-rws = ifelse(parkcode == "MABI", 2, 3)
+hts = if(length(comp_plots_p) <= 4){c(0.5, 0.5)} else {c(0.325, 0.35, 0.325)}
+rws = if(length(comp_plots_p) <= 4){2} else {3}
 # Use plot list to create matrix of plots (plotly subplot)
 comp_plots_p_final <- subplot(comp_plots_p[1:length(comp_plots_p)],
                          titleY = TRUE, titleX = FALSE, margin = 0.05,
@@ -301,7 +309,7 @@ for (i in 1:length(num_sites)){
 }
 
 # Move legend down slightly and make it horizontal
-comp_plots_p_final <- comp_plots_p_final  |>  layout(legend = list(x = 0, y = -0.05, orientation = "h"))
+comp_plots_p_final <- comp_plots_p_final  |>  layout(legend = list(x = 0, y = -0.25, orientation = "h"))
 ```
 
 ```{r site_comp_setup_n, echo = F, warning = F, message = F, eval = show_comp_n, erro = TRUE}
@@ -321,7 +329,8 @@ comp_plots_n <- purrr::map2(char_list_n, legend_list_n,
                                           parkcode = parkcode, 
                                           sitecode = site_list,
                                           charname = .x,
-                                          legend = .y)) |> 
+                                          legend = .y)+ 
+                              labs(color = NULL, fill = NULL, shape = NULL, linetype = NULL)) |> 
                           #facet_wrap(~Characteristic) |> 
                 set_names(char_list_n) #name plots to refer to them by char name
 
@@ -341,7 +350,7 @@ for (i in 1:length(num_sites)){
 }
 
 # Move legend down slightly and make it horizontal
-comp_plots_n_final <- comp_plots_n_final |> layout(legend = list(x = 0, y = -0.12, orientation = "h"))
+comp_plots_n_final <- comp_plots_n_final |> layout(legend = list(x = 0, y = -0.25, orientation = "h"))
 ```
 
 # `r long_name` {.tabset .tabset-fade .tabset-pills}
