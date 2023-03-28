@@ -30,30 +30,10 @@ render_LNETN_reports <- function(park_list, nutrient, plottype = 'bands'){
   
 }
 
-map(lnetn_parks[4], ~render_LNETN_reports(., nutrient = TRUE))
-map(lnetn_parks[5], ~render_LNETN_reports(., nutrient = TRUE))
 map(lnetn_parks[1:6], ~render_LNETN_reports(., nutrient = TRUE))
 map(lnetn_parks[7], ~render_LNETN_reports(., nutrient = FALSE))
 
 render_LNETN_reports("SAIR", nutrient = FALSE, plottype = 'boxplot')
-
-
-render_LNETN_reports_2019 <- function(park_list){
-  render(input = paste0(indir, rmd),
-         params = list(park = park_list, to = 2018, current = 2019, nutrient = TRUE),
-         output_file = paste0("NETN_water_summary_", 
-                              park_list, "_", "2019", 
-                              ".html"),
-         output_dir = outdir)
-  
-}
-
-map(lnetn_parks, ~render_LNETN_reports_2019(.))
-map(c("MABI", "MIMA", "SAGA", "SAIR"), ~render_LNETN_reports(.))
-
-render_LNETN_reports("SAIR", nutrient = TRUE)
-
-
 
 #----- Report for ACAD
 render_ACAD_report <- function(park_list, year, nutrient){
@@ -64,21 +44,10 @@ render_ACAD_report <- function(park_list, year, nutrient){
                               park_list, "_", #"_2021", 
                               format(Sys.time(), '%b_%Y'),
                               ".html"),
-         output_dir = outdir)
+         output_dir = outdir,
+         output_options = list(self_contained = TRUE))
 }
   
-render_ACAD_report("ACAD", 2021, nutrient = FALSE)
+render_ACAD_report("ACAD", 2022, nutrient = TRUE)
 
-render_ACAD_report_2020 <- function(park_list, year, nutrient){
-  render(input = paste0(indir, acad_rmd),
-         params = list(park = park_list, nutrient = nutrient, from = 2006, to = year - 1, current = year),
-         output_file = paste0("NETN_water_summary_", 
-                              park_list, "_", "2020", 
-#                              format(Sys.time(), '%b_%Y'),
-                              ".html"),
-         output_dir = outdir)
-}
 
-render_ACAD_report_2020("ACAD", 2021, nutrient = FALSE)
-
- 
