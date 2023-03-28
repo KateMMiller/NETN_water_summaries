@@ -9,10 +9,10 @@ full_data = data.frame(month = 1:5,
                        val = 5:9,
                        val2 = 4:8,
                        var = 
-                         factor(c("Historic range", "Historic 95% range", "Historic 50% range",
-                                  "Historic median", "WQ threshold"),
-                                levels = c("Historic range", "Historic 95% range", "Historic 50% range",
-                                           "Historic median", "WQ threshold")))
+                         factor(c("Historic range", "Hist. 95% range", "Hist. 50% range",
+                                  "Hist. median", "WQ threshold"),
+                                levels = c("Historic range", "Hist. 95% range", "Hist. 50% range",
+                                           "Hist. median", "WQ threshold")))
 
 point_data = data.frame(month = c(1, 3),
                         val = c(5, 7),
@@ -26,45 +26,46 @@ fake_bands <-
   geom_line(aes(color = var, linetype = var, linetype = var), size = 1)+
   scale_color_manual(values = 
                        c("Historic range" = "#E4F0F8", 
-                         "Historic 95% range" = "#B8D8ED", 
-                         "Historic 50% range" = "#7FB9DD", 
-                         "Historic median" = "#1378b5", 
+                         "Hist. 95% range" = "#B8D8ED", 
+                         "Hist. 50% range" = "#7FB9DD", 
+                         "Hist. median" = "#1378b5", 
                          "WQ threshold" = "black"),
                      breaks = 
                        c("Historic range", 
-                         "Historic 95% range", 
-                         "Historic 50% range", 
-                         "Historic median", 
+                         "Hist. 95% range", 
+                         "Hist. 50% range", 
+                         "Hist. median", 
                          "WQ threshold"),
                      name = NULL)+
   scale_linetype_manual(values =
                           c("Historic range" = 'solid', 
-                            "Historic 95% range" = 'solid', 
-                            "Historic 50% range" = 'solid', 
-                            "Historic median" = 'solid', 
+                            "Hist. 95% range" = 'solid', 
+                            "Hist. 50% range" = 'solid', 
+                            "Hist. median" = 'solid', 
                             "WQ threshold" = 'dashed'),
                         breaks = 
                           c("Historic range", 
-                            "Historic 95% range", 
-                            "Historic 50% range", 
-                            "Historic median", 
+                            "Hist. 95% range", 
+                            "Hist. 50% range", 
+                            "Hist. median", 
                             "WQ threshold"),
                         name = NULL)+
   scale_fill_manual(values = 
                       c("Historic range" = "#E4F0F8", 
-                        "Historic 95% range" = "#B8D8ED", 
-                        "Historic 50% range" = "#7FB9DD", 
-                        "Historic median" = "white", 
+                        "Hist. 95% range" = "#B8D8ED", 
+                        "Hist. 50% range" = "#7FB9DD", 
+                        "Hist. median" = "white", 
                         "WQ threshold" = "white"), 
                     breaks = 
                       c("Historic range", 
-                        "Historic 95% range", 
-                        "Historic 50% range", 
-                        "Historic median", 
+                        "Hist. 95% range", 
+                        "Hist. 50% range", 
+                        "Hist. median", 
                         "WQ threshold"),
                     name = NULL) +
   theme(legend.position = 'bottom',
         axis.title.y = element_text(size = 10),
+        legend.text = element_text(size = 9),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_rect(color = '#696969', fill = 'white', linewidth = 0.4),
@@ -72,7 +73,7 @@ fake_bands <-
         axis.line.y = element_line(color = "#696969", linewidth = 0.4),
         axis.ticks = element_line(color = "#696969", linewidth = 0.4),
         legend.key = element_blank(),
-        legend.key.width = unit(1.1, 'cm'))
+        legend.key.width = unit(0.8, 'cm'))
 
 fake_points <-
   ggplot(point_data, aes(x = month, y = val, color = var))+
@@ -87,6 +88,7 @@ fake_points <-
                      name = NULL)+
   theme(legend.position = 'bottom',
         axis.title.y = element_text(size = 10),
+        legend.text = element_text(size = 9),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_rect(color = '#696969', fill = 'white', linewidth = 0.4),
@@ -98,13 +100,16 @@ fake_points <-
 leg_bands_pb <- as_ggplot(get_legend(fake_bands))
 leg_points_pb <- as_ggplot(get_legend(fake_points))
 
-leg <- grid.arrange(grobs = list(leg_bands_pb, leg_points_pb), 
-                    nrow = 1, ncol = 3,
-                    heights = c(0.5),
-                    widths = c(23.5, 0.02, 4),
-                    layout = c(1, NA, 2))
+legg <- as_ggplot(
+  grid.arrange(grobs = list(leg_bands_pb, leg_points_pb),
+               nrow = 1, ncol = 2,
+               heights = c(0.25),
+               widths = c(28, 12),
+               layout = c(1, 2)))
 
-ggsave("./rmd/waterband_leg.svg", as_ggplot(leg), width = 12, height = 0.25)
+#legg <- as_ggplot(leg)
+
+#ggsave("./rmd/waterband_leg.svg", as_ggplot(leg), width = 12, height = 0.25)
 #legimg2 <- magick::image_read_pdf("./rmd/waterband_leg.pdf", density = 600)
 
 #ggsave("./rmd/waterband_leg.pdf", as_ggplot(leg), width = 12, height = 0.25)
