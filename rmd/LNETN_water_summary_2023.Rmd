@@ -289,7 +289,7 @@ hts = if(length(comp_plots_p) <= 4){c(0.5, 0.5)} else {c(0.325, 0.35, 0.325)}
 rws = if(length(comp_plots_p) <= 4){2} else {3}
 # Use plot list to create matrix of plots (plotly subplot)
 comp_plots_p_final <- subplot(comp_plots_p[1:length(comp_plots_p)],
-                         titleY = TRUE, titleX = FALSE, margin = 0.05,
+                         titleY = TRUE, titleX = FALSE, margin = 0.08,
                          #create 3 rows if more than 4 plots, otherwise 2 rows
                          nrows = rws,
                          #set height of each row (default makes middle row shorter)
@@ -309,7 +309,7 @@ for (i in 1:length(num_sites)){
 }
 
 # Move legend down slightly and make it horizontal
-comp_plots_p_final <- comp_plots_p_final  |>  layout(legend = list(x = 0, y = -0.25, orientation = "h"))
+comp_plots_p_final <- comp_plots_p_final  |>  layout(legend = list(x = 0, y = -0.15, orientation = "h"))
 ```
 
 ```{r site_comp_setup_n, echo = F, warning = F, message = F, eval = show_comp_n, erro = TRUE}
@@ -336,7 +336,7 @@ comp_plots_n <- purrr::map2(char_list_n, legend_list_n,
 
 # Use plot list to create matrix of plots (plotly subplot)
 comp_plots_n_final <- subplot(comp_plots_n[1:length(comp_plots_n)],
-                         titleY = TRUE, titleX = FALSE, margin = 0.05, nrows = 1) |> 
+                         titleY = TRUE, titleX = FALSE, margin = 0.08, nrows = 1) |> 
   # turn off subplot legend, manually set height and width of subplot
   style(showlegend = FALSE) |> layout(autosize = FALSE)#, width = 900, height = 300)
 
@@ -350,7 +350,7 @@ for (i in 1:length(num_sites)){
 }
 
 # Move legend down slightly and make it horizontal
-comp_plots_n_final <- comp_plots_n_final |> layout(legend = list(x = 0, y = -0.25, orientation = "h"))
+comp_plots_n_final <- comp_plots_n_final |> layout(legend = list(x = 0, y = -0.15, orientation = "h"))
 ```
 
 # `r long_name` {.tabset .tabset-fade .tabset-pills}

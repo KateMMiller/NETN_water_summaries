@@ -25,12 +25,10 @@ render_LNETN_reports <- function(park_list, nutrient, plottype = 'bands'){
                           output_file = paste0("NETN_water_summary_", 
                             park_list, "_", format(Sys.time(), '%b_%Y'), ".html"),
                           output_dir = "./rmd/output/",
-                          output_options = list(self_contained=TRUE))#,
+                          output_options = list(self_contained = TRUE))#,
                           #encoding = "UTF-8")
   
 }
-
-?render
 
 map(lnetn_parks[4], ~render_LNETN_reports(., nutrient = TRUE))
 map(lnetn_parks[5], ~render_LNETN_reports(., nutrient = TRUE))
