@@ -79,7 +79,7 @@ h5 {
 .banner{
   background: black;
   height: 105px;
-  width: 910px;
+  width: 920px;
   margin-left: auto;
   margin-right: auto;
 }
@@ -116,7 +116,7 @@ h5 {
   height: 90px;
   position: relative;
 }
- 
+
 .header h5 {
   position: relative;
   text-align: left;
