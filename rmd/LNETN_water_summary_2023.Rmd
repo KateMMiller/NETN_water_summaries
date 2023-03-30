@@ -153,7 +153,7 @@ source("waterboxplot_function.R")
 # source("./rmd/waterboxplot_function.R")
 ```
 
-```{r site_comp_setup, echo = F, warning = F, message = F, eval = show_comp}
+```{r site_comp_setup, echo = F, warning = F, message = F, eval = show_comp, include = F}
 ##------------------------------------------------------------------------------
 ## Physical site comp setup
 ##------------------------------------------------------------------------------
@@ -215,7 +215,7 @@ for (i in 1:length(num_sites)){
 comp_plots_p_final <- comp_plots_p_final  |>  layout(legend = list(x = 0, y = -0.15, orientation = "h"))
 ```
 
-```{r site_comp_setup_n, echo = F, warning = F, message = F, eval = show_comp_n, erro = TRUE}
+```{r site_comp_setup_n, echo = F, warning = F, message = F, eval = show_comp_n, error = TRUE, include = F}
 ##------------------------------------------------------------------------------
 ## Nutrients site comp setup
 ##------------------------------------------------------------------------------
