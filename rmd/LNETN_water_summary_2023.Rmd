@@ -180,6 +180,7 @@ comp_plots_p <- purrr::map2(char_list_p_comp, legend_list_p,
                 set_names(char_list_p_comp)
                 #name plots to refer to them by char name
 
+comp_plots_p
 # leg_comp_p <- as_ggplot(get_legend(
 #   watersite_comps(netnwd, year = current, parkcode = parkcode,
 #                   sitecode = site_list, 
@@ -227,15 +228,17 @@ legend_list_n <- c(rep("none", length(char_list_n)-1), "bottom")
 
 # Create list of plots comparing physical parameters across all sites in park
 comp_plots_n <- purrr::map2(char_list_n, legend_list_n,
-                         ~watersite_comps(netnwd, 
+                         ~ggplotly(
+                           watersite_comps(netnwd, 
                                           year = current, 
                                           parkcode = parkcode, 
                                           sitecode = site_list,
                                           charname = .x,
                                           legend = .y)+ 
-                              labs(color = NULL, fill = NULL, shape = NULL, linetype = NULL)) |> 
-                          #facet_wrap(~Characteristic) |> 
+                              labs(color = NULL, fill = NULL, shape = NULL, linetype = NULL),
+                            tooltip = 'text')) |> 
                 set_names(char_list_n) #name plots to refer to them by char name
+comp_plots_n
 
 # Use plot list to create matrix of plots (plotly subplot)
 comp_plots_n_final <- subplot(comp_plots_n[1:length(comp_plots_n)],
