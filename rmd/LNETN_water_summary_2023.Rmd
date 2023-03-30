@@ -67,6 +67,7 @@ source("fake_bands_legend_code.R") # creates legend with fake data
 # to = 2021
 # nutrient = TRUE
 # plottype = 'bands'
+# params <- data.frame(plottype = 'bands')
 
 current = params$current
 to = current - 1
@@ -149,6 +150,7 @@ show_comp_n <- ifelse(show_comp == TRUE & nutrient == TRUE, TRUE, FALSE)
 
 ```{r waterboxplot, eval = boxplot_eval}
 source("waterboxplot_function.R")
+# source("./rmd/waterboxplot_function.R")
 ```
 
 ```{r site_comp_setup, echo = F, warning = F, message = F, eval = show_comp}
@@ -166,13 +168,17 @@ legend_list_p <- c(rep("none", length(char_list_p_comp)-1), "bottom")
 
 # Create list of plots comparing physical parameters across all sites in park
 comp_plots_p <- purrr::map2(char_list_p_comp, legend_list_p,
-                            ~watersite_comps(netnwd, year = current, 
-                                     parkcode = parkcode, 
-                                     sitecode = site_list,
-                                     charname = .x,
-                                     legend = .y) + 
-                              labs(color = NULL, fill = NULL, shape = NULL, linetype = NULL)) |> 
-                set_names(char_list_p_comp) #name plots to refer to them by char name
+                            ~ggplotly(
+                              watersite_comps(netnwd, year = current, 
+                                      parkcode = parkcode, 
+                                      sitecode = site_list,
+                                      charname = .x,
+                                      legend = .y) + 
+                              labs(color = NULL, fill = NULL, 
+                                   shape = NULL, linetype = NULL),
+                            tooltip = 'text')) |> 
+                set_names(char_list_p_comp)
+                #name plots to refer to them by char name
 
 # leg_comp_p <- as_ggplot(get_legend(
 #   watersite_comps(netnwd, year = current, parkcode = parkcode,
