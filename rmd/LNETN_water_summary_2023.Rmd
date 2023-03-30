@@ -160,7 +160,7 @@ source("waterboxplot_function.R")
 # List of physical parameters in park
 char_list_p <- sort(unique(wdata_full$Characteristic[wdata_full$Category == 'physical']))
 
-char_list_p_comp <- if(parkcode %in% c("MABI", "MIMA")){char_list_p[!(char_list_p %in% "Discharge_cfs")]
+char_list_p_comp <- if(parkcode %in% c("MABI", "MIMA", "SAIR")){char_list_p[!(char_list_p %in% "Discharge_cfs")]
   } else {char_list_p}
 
 # Turn off all legends except last in list to remove legend duplicates from subplot
@@ -180,7 +180,6 @@ comp_plots_p <- purrr::map2(char_list_p_comp, legend_list_p,
                 set_names(char_list_p_comp)
                 #name plots to refer to them by char name
 
-comp_plots_p
 # leg_comp_p <- as_ggplot(get_legend(
 #   watersite_comps(netnwd, year = current, parkcode = parkcode,
 #                   sitecode = site_list, 
@@ -238,7 +237,6 @@ comp_plots_n <- purrr::map2(char_list_n, legend_list_n,
                               labs(color = NULL, fill = NULL, shape = NULL, linetype = NULL),
                             tooltip = 'text')) |> 
                 set_names(char_list_n) #name plots to refer to them by char name
-comp_plots_n
 
 # Use plot list to create matrix of plots (plotly subplot)
 comp_plots_n_final <- subplot(comp_plots_n[1:length(comp_plots_n)],
