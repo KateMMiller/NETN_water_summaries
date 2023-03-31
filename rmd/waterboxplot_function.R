@@ -1,8 +1,14 @@
 #-------------------------------------------------
 # Function to generate boxplot figures in plotly, only if params$plottype != 'bands'
 #-------------------------------------------------
+# parkcode = "ACAD"; sitecode = "NETN_ACAD_ABIN"; chars = c("ANC_ueqL", "TN_mgL", "TP_ugL")
+# data = wdata_full
+#charname = chars[2]
+# 
+# waterboxplot(data = wdata_full, parkcode = "ACAD",
+#              sitecode = "NETN_ACAD_ABIN", charname = chars[3], legend = T)
 
-waterboxplot <- function(data = wdata_full, parkcode, sitecode, charname) {
+waterboxplot <- function(data = wdata_full, parkcode, sitecode, charname, legend = TRUE) {
   
   # params for package function
   category <- "nutrients"
@@ -28,7 +34,8 @@ waterboxplot <- function(data = wdata_full, parkcode, sitecode, charname) {
     showline = TRUE,
     showgrid = FALSE,
     autotick = TRUE,
-    ticks = "outside"
+    ticks = "outside",
+    range = c(range(wdat$ValueCen))
   )
   
   # Set x axis style for plotly
@@ -52,13 +59,20 @@ waterboxplot <- function(data = wdata_full, parkcode, sitecode, charname) {
   
   wdat_hist <- wdat |> filter(year < current)
   wdat_curr <- wdat |> filter(year == current)
+
+  # Ensures orange symbol shows in legend
+  oranged <- 
+    if(nrow(wdat_curr[wdat_curr$pcolor == "Poor WQ value", ]) == 0){
+      data.frame(month_num = 5, ValueCen = -999)
+    } else {
+      wdat_curr[wdat_curr$pcolor == "Poor WQ value", ]}
   
-  p <- plot_ly(wdat_hist, x = ~month_num, y = ~ValueCen) |> 
+    p <- plot_ly(wdat_hist, x = ~month_num, y = ~ValueCen) |> 
     
     # Boxplots historic range
     add_boxplot(boxpoints = "outliers", name = "Historic range", 
                 marker = list(symbol='asterisk-open', size = 7, color = "#1378b5"),
-                fillcolor = list(color = "#1378b5", alpha = 0.85),
+                fillcolor = list(color = "#1378b5", alpha = 0.85), #showlegend = legend, 
                 line = list(color = "#1378b5")) |> #, showlegend = FALSE) |>  
     
     # Current year measurements
@@ -68,7 +82,8 @@ waterboxplot <- function(data = wdata_full, parkcode, sitecode, charname) {
                 marker = list(color = "black", size = 7),
                 hovertemplate = hover) |> 
     
-    add_markers(data = wdat_curr[wdat_curr$pcolor=="Poor WQ value",], 
+    # Orange markers; rbind -999 makes markers show up if no poor WQ in that plot
+    add_markers(data = oranged,
                 name = "Poor WQ value",
                 marker = list(color = "orange", size = 7),
                 hovertemplate = hover) |> 
@@ -94,12 +109,14 @@ waterboxplot <- function(data = wdata_full, parkcode, sitecode, charname) {
                         NA))
   
   # If there is an upper threshold value, add WQ line to plot
-  ifelse(!is.na(UpperPoint), 
-         p <- p |> add_segments(y = UpperPoint, yend = UpperPoint,
-                                x = wq_x, xend = wq_xend, # length of line
-                                text = paste("Upper", param_name, "threshold:", UpperPoint, unit),
-                                hoverinfo = "text", # set tooltip text
-                                line = list(color = "black", dash = "dash"),
-                                name = "WQ threshold"), NA)
+  UpperPoint = ifelse(is.na(UpperPoint), 0, UpperPoint)
+#  ifelse(!is.na(UpperPoint), 
+  p <- p |> add_segments(y = UpperPoint, yend = UpperPoint,
+                         x = wq_x, xend = wq_xend, # length of line
+                         text = paste("Upper", param_name, "threshold:", UpperPoint, unit),
+                         hoverinfo = "text", # set tooltip text
+                         line = list(color = "black", dash = "dash"),
+                         name = "WQ threshold") |> 
+            layout(showlegend = legend)
   return(p)
 }
