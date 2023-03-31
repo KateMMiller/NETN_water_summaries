@@ -13,7 +13,7 @@ params:
   from: 2006 # first year of data
   current: 2022 # current year of data
   nutrient: TRUE # T plots nutrients, but should be complete for season
-  plottype: bands # plot bands or boxplot for nutrients
+  plottype: boxplot # plot bands or boxplot for nutrients
 ---
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, fig.pos = "h")
@@ -77,7 +77,7 @@ nutrient = params$nutrient
 plottype = params$plottype
 
 # Determine whether waterboxplot_function needs to be evaluated
-boxplot_eval = ifelse(params$plottype != 'bands', TRUE, FALSE)
+boxplot_eval = ifelse(plottype != 'bands', TRUE, FALSE)
 
 # Long park name
 long_name = getParkInfo(netnwd, park = parkcode, info = "ParkLongName")
@@ -360,6 +360,10 @@ site_char_list_n <- char_list_n |>
   filter((SiteType == "Lake" & Characteristic %in% lake_nutrients) | 
          (SiteType == "Stream" & Characteristic %in% stream_nutrients))
 
+# Turn off all legends except last in list to remove legend duplicates from subplot
+boxplot_legend_n <- rep(c(rep(FALSE, length(char_list_n)-1), TRUE), 
+                             length(unique(char_list_n$Site)))
+
 # Iterate on dataframe to create nutrient plots
 # If > 2 months available for 4 years, then use waterbands instead of boxplots
 # params = data.frame(plottype = 'bands')
@@ -372,9 +376,9 @@ plot_list_n <-
          set_names(site_char_list_n$Site)
 
 } else {
-    map2(site_char_list_n$Site, site_char_list_n$Characteristic, 
-         ~waterboxplot(sitecode=.x, charname=.y)) |> 
-         set_names(site_char_list_n$Site)
+      pmap(list(site_char_list_n$Site, site_char_list_n$Characteristic, boxplot_legend_n),
+          ~waterboxplot(sitecode = ..1, charname = ..2, legend = ..3)) |> 
+           set_names(site_char_list_n$Site)
 }
 
 ```
@@ -440,15 +444,27 @@ for(i in seq_along(site_list)){
                 #       orientation = "h"))
   
   # Nutrient subplot
-  subplots_n <- if(nutrient == TRUE & exists("plot_list_n")){
+  subplots_n <- if(nutrient == TRUE & num_plots_n > 0){
                   subplot(plot_list_n[names(plot_list_n) == site][1:num_plots_n],
                           titleY = TRUE, titleX = FALSE, #margin = 0.05,
                           nrows = ifelse(num_plots_n > 4, 3, 2),
-                          margin = c(0.05, 0.05, 0.05, 0.05)) #|> 
-                  # layout(legend = list(x = 0, y = ifelse(num_plots_n > 4, -0.05, -0.08),
-                  #        orientation = "h"))
-    }
+                          margin = c(0.05, 0.05, 0.05, 0.05)) |> 
+                  layout(legend = list(x = 0, y = ifelse(num_plots_n > 4, -0.05, -0.08),
+                         orientation = "h"))} else {NULL}
+  
+  for (i in 1:(num_plots_n - 1)){
+  subplots_n$x$data[[i]]$showlegend <- FALSE #site (line/markers)
+  subplots_n$x$data[[length(subplots_n$x$data)]]$showlegend <- FALSE #threshold line
+  #subplots_n$x$data[[length(subplots_n$x$data)]]$name <- "WQ Threshold" #set name
+  }
+  
+  #++++++++++++++++++ ENDED HERE +++++++++++++++++++++
+  # The legend for the boxplots is still printing duplicates
+  #+++++++++++++++++++++++++++++++++++++++++++++++++++
     
+  # set up conditional eval in knit tabs below
+  subplot_n_eval = ifelse(is.null(subplots_n), FALSE, TRUE) 
+  subplot_n_bands = ifelse(subplot_n_eval == TRUE & plottype == 'bands', TRUE, FALSE)
 ##------------------------------------------------------------------------------
 ## Knit tabs                           
 ##------------------------------------------------------------------------------
@@ -485,7 +501,11 @@ for(i in seq_along(site_list)){
     # if reporting nutrients, create physical and nutrient subtabs 
     } else {template <- paste0(
       "## {{site_name}}{.tabset}\n", #create tab with site name
-      "### Field Measurements {.tabset}\n", #physical subtab
+
+      "```{r echo = FALSE, results = 'asis', eval = subplot_n_eval}\n
+      cat('### Field Measurements {.tabset}\n') 
+      ```\n",
+      "\n",
       
       "```{r fig.height=", fig_height_p, ", fig.width=", fig_width, ", echo = FALSE}\n",
       "plot_title\n", #title of tab
@@ -503,18 +523,20 @@ for(i in seq_along(site_list)){
       
       "\n",
 
-      "### Lab Chemistry {.tabset}\n", #nutrient subtab
+      "```{r echo = FALSE, results = 'asis', eval = subplot_n_eval}\n
+      cat('### Lab Chemistry {.tabset}\n') 
+      ```\n",
       
-      "```{r fig.height=", fig_height_n, ", fig.width=", fig_width,", echo = FALSE}\n",
+      "```{r fig.height=", fig_height_n, ", fig.width=", fig_width,", echo = FALSE, eval = subplot_n_eval}\n",
       "plot_title\n", #title of tab
       "\n",
       "fig_cap_n\n", #caption
-      "subplots_n", #physical subplots
+      "subplots_n", #nutrient subplots
       "\n",
       "```\n",
       "\n",
 
-      "```{r fig.height=0.18, fig.width = 9.2, echo = FALSE, dpi=300}\n",
+      "```{r fig.height=0.18, fig.width = 9.2, echo = FALSE, dpi=300, eval = subplot_n_bands}\n",
       "legg",
       "\n",
       "```\n",

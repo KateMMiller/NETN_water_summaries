@@ -9,14 +9,13 @@ output:
       after_body: "footer.html"
     self_contained: yes
 params:
-  park: ACAD # 4-letter park code
   from: 2006 # first year of data
   current: 2022 # current year of data
   nutrient: TRUE # T plots nutrients, but should be complete for season
-  plottype: bands # plot bands or boxplot for nutrients
+  plottype: boxplot # plot bands or boxplot for nutrients
 ---
 ```{r setup, include = FALSE}
-knitr::opts_chunk$set(echo = FALSE, fig.pos = "h")
+knitr::opts_chunk$set(echo = FALSE, fig.pos = "h", warning = F, message = F)
 ```
 
 ```{r libs, include = FALSE, results = 'hide'}
@@ -54,7 +53,7 @@ source("fake_bands_legend_code.R") # creates legend with fake data
 #source("./rmd/fake_bands_legend_code.R") 
 ```
 
-```{r globvars, message = F}
+```{r globvars, message = F, warning = F, include = F}
 ##------------------------------------------------------------------------------
 ## Global variables
 ##------------------------------------------------------------------------------
@@ -65,17 +64,18 @@ source("fake_bands_legend_code.R") # creates legend with fake data
 # to = 2021
 # nutrient = TRUE
 # plottype = 'bands'
+# params = data.frame(plottype = 'bands')
 
 # Variables for cat asis code, which can't take params
 current = params$current
 to = current - 1
-parkcode = params$park
+parkcode = "ACAD"
 from = params$from
 nutrient = params$nutrient
 plottype = params$plottype
 
 # Determine whether waterboxplot_function needs to be evaluated
-boxplot_eval = ifelse(params$plottype != 'bands', TRUE, FALSE)
+boxplot_eval = ifelse(plottype != 'bands', TRUE, FALSE)
 
 # Long park name
 long_name = getParkInfo(netnwd, park = parkcode, info = "ParkLongName")
@@ -84,7 +84,10 @@ long_name = getParkInfo(netnwd, park = parkcode, info = "ParkLongName")
 wdata <- getWData(netnwd, parkcode = parkcode, output = 'dataframe')
 wdata <- wdata |> mutate(year = year(Date),
                        month = month(Date, label = TRUE, abbr = TRUE),
-                       month_num = as.numeric(month))
+                       month_num = as.numeric(month)) |> 
+         filter(!Site %in% c("NETN_ACAD_BOWL", "NETN_ACAD_SAMP")) 
+         # Bowl and Sgt. Mtn Pond are sampled outside 5:10 and cause problems
+         # when iterating along site lists for plotting.
 
 if(nrow(wdata |> filter(year == current)) == 0){
   stop(paste0("There are no data available for ", parkcode, " in specified year ", current))
@@ -100,11 +103,11 @@ site_list <- site_list_all[site_list_all %in% site_curr]
 # Create site key for sitecode and type
 site_key <- purrr::map_dfr(site_list,
   ~data.frame(Site = getSiteInfo(netnwd, parkcode = parkcode, 
-                                sitecode = ., info = "SiteCode"),
-             SiteName = getSiteInfo(netnwd, parkcode = parkcode, 
-                                    sitecode = ., info = "SiteName"),
-             SiteType =  getSiteInfo(netnwd, parkcode = parkcode, 
-                                     sitecode = ., info = "type")))
+                                 sitecode = ., info = "SiteCode"),
+              SiteName = getSiteInfo(netnwd, parkcode = parkcode, 
+                                     sitecode = ., info = "SiteName"),
+              SiteType =  getSiteInfo(netnwd, parkcode = parkcode, 
+                                      sitecode = ., info = "type")))
 
 # Import lower and upper assessment values and join with wdat
 charinfo <- data.frame(
@@ -136,7 +139,7 @@ wdata2 <- left_join(wdata, charinfo, by = c("Site", "Characteristic" = "CharName
            yname = ifelse(param_name != 'pH', paste0(param_name, " (", unit, ")"), "pH"))
 
 # Add site names to water data
-wdata_full <- left_join(wdata2 |> select(-type), site_key, by = "Site") |> arrange(Date)
+wdata_full <- left_join(wdata2 |> select(-type), site_key, by = "Site") |> arrange(Site, Date)
 wdata_curr <- wdata_full |> filter(year == current)
 wdata_hist <- wdata_full |> filter(year < current)
 
@@ -144,12 +147,35 @@ wdata_hist <- wdata_full |> filter(year < current)
 show_comp <- ifelse(length(site_list) > 1, TRUE, FALSE)
 show_comp_n <- ifelse(show_comp == TRUE & nutrient == TRUE, TRUE, FALSE)
 
-site_list_lake <- site_key |> filter(SiteType == "Lake") |> filter(Site %in% site_curr)
-site_list_stream <- site_key |> filter(SiteType == "Stream") |> filter(Site %in% site_curr)
+site_list_lake_p <- wdata_curr |> filter(SiteType == "Lake") |> 
+  filter(month_num >=5) |> filter(Category == "physical") |> 
+  select(Site, SiteName, SiteType) |> unique()
+
+site_list_lake_n <- wdata_curr |> filter(SiteType == "Lake") |> 
+  filter(month_num >=5) |> filter(Characteristic %in% c("TN_mgL", "TP_mgL")) |> 
+  select(Site, SiteName, SiteType) |> unique()
+
+site_list_stream_p <- wdata_curr |> filter(SiteType == "Stream") |> 
+  filter(month_num >=5) |> filter(Category == "physical") |> 
+  select(Site, SiteName, SiteType) |> unique()
+
+site_list_stream_n <- wdata_curr |> filter(SiteType == "Stream") |> 
+  filter(month_num >=5) |> filter(Characteristic %in% c("TN_mgL", "TP_mgL")) |> 
+  select(Site, SiteName, SiteType) |> unique()
+
+site_list_lake <- if(exists("site_list_lake_n")){
+  rbind(site_list_lake_p, site_list_lake_n) |> unique()
+} else {site_list_lake_p}
+
+site_list_stream <- if(exists("site_list_stream_n")){
+  rbind(site_list_stream_p, site_list_stream_n) |> unique()
+} else {site_list_stream_p}
+
 ```
 
 ```{r waterboxplot, eval = boxplot_eval}
 source('waterboxplot_function.R')
+#source("./rmd/waterboxplot_function.R")
 ```
 
 
@@ -158,8 +184,9 @@ source('waterboxplot_function.R')
 ## LAKES - Physical site comp setup
 ##------------------------------------------------------------------------------
 # List of physical lake parameters (excludes discharge)
-char_list_lake_p <- sort(unique(wdata_full$Characteristic[wdata_full$Category == 'physical' & 
-                                                          wdata_full$SiteType == "Lake"]))
+char_list_lake_p <- sort(unique(
+  wdata_curr$Characteristic[wdata_curr$Category == 'physical' & 
+                              wdata_curr$SiteType == "Lake"]))
 #table(wdata_full$SiteType, wdata_full$Characteristic, wdata_full$Category)
 
 # Turn off all legends except last in list to remove legend duplicates from subplot
@@ -167,29 +194,32 @@ legend_list_lake_p <- c(rep("none", length(char_list_lake_p)-1), "bottom")
 
 # Create list of plots comparing physical parameters across all lakes in park
 comp_plots_lake_p <- purrr::map2(char_list_lake_p, legend_list_lake_p,
-                         ~watersite_comps(netnwd, year = current, 
-                                     parkcode = "ACAD", 
-                                     sitecode = site_list_lake$Site,
-                                     charname = .x,
-                                     legend = .y) + 
-                           labs(color = NULL, fill = NULL, shape = NULL, linetype = NULL)) %>%
-              set_names(char_list_lake_p) #name plots to refer to them by char name
+                         ~ggplotly(
+                           watersite_comps(netnwd, year = current, 
+                                           parkcode = "ACAD", 
+                                           sitecode = site_list_lake_p$Site,
+                                           charname = .x,
+                                           legend = .y) + 
+                           labs(color = NULL, fill = NULL, 
+                                shape = NULL, linetype = NULL),
+                           tooltip = "text")) |>
+                     set_names(char_list_lake_p) #name plots to refer to them by char name
 
 heights_lake_p <- c(0.5, 0.5)
 
 # Use plot list to create matrix of plots (plotly subplot)
 comp_plots_lake_p_final <- subplot(comp_plots_lake_p[1:length(comp_plots_lake_p)],
-                         titleY = TRUE, titleX = FALSE, margin = 0.08,
-                         #create 3 rows if more than 4 plots, otherwise 2 rows
-                         nrows = ifelse(length(comp_plots_lake_p)> 4, 3, 2),
-                         #set height of each row (default makes middle row shorter)
-                         heights = heights_lake_p) %>% 
+                                   titleY = TRUE, titleX = FALSE, margin = 0.08,
+                                   #create 3 rows if more than 4 plots, otherwise 2 rows
+                                   nrows = ifelse(length(comp_plots_lake_p)> 4, 3, 2),
+                                   #set height of each row (default makes middle row shorter)
+                                   heights = heights_lake_p) |> 
   # turn off subplot legend
-  style(showlegend = FALSE) %>% 
+  style(showlegend = FALSE) |> 
   # manually set width and height of subplot
   layout(autosize = FALSE)#, width = 900, height = 650)
 
-num_sites_lake_p <- c(1:length(site_list_lake))
+num_sites_lake_p <- c(1:nrow(site_list_lake_p))
 
 # Turn on legend elements 
 for (i in 1:length(num_sites_lake_p)){
@@ -199,7 +229,7 @@ for (i in 1:length(num_sites_lake_p)){
 }
 
 # Move legend down slightly and make it horizontal
-comp_plots_lake_p_final <- comp_plots_lake_p_final %>% layout(legend = list(x = 0, y = -0.15, orientation = "h"))
+comp_plots_lake_p_final <- comp_plots_lake_p_final |> layout(legend = list(x = 0, y = -0.15, orientation = "h"))
 ```
 
 ```{r lake_comp_setup_n, eval = show_comp_n, echo = F, warning = F, message = F, error = TRUE}
@@ -207,45 +237,43 @@ comp_plots_lake_p_final <- comp_plots_lake_p_final %>% layout(legend = list(x = 
 ## LAKES - Nutrients site comp setup
 ##------------------------------------------------------------------------------
 # List of nutrient parameters to include in site comparison
-char_list_lake_n <- c("TN_mgL", "TP_ugL")
+char_list_lake_n <- c("TN_mgL", "TP_ugL", "ChlA_ugL")
 
 # Turn off all legends except last in list to remove legend duplicates from subplot
 legend_list_lake_n <- c(rep("none", length(char_list_lake_n)-1), "bottom")
 
-# Create list of plots comparing physical parameters across all sites in park
-comp_plots_lake_n <- purrr::map2(char_list_lake_n, legend_list_lake_n,
-                         ~watersite_comps(netnwd, 
-                                          year = current, 
-                                          parkcode = parkcode, 
-                                          sitecode = site_list_lake$Site,
-                                          charname = .x,
-                                          legend = .y)) %>%
-              set_names(char_list_lake_n) #name plots to refer to them by char name
+comp_plots_lake_n <- 
+  map2(char_list_lake_n, legend_list_lake_n,
+       ~ggplotly(
+          watersite_comps(netnwd, 
+                          year = current, 
+                          parkcode = parkcode, 
+                          sitecode = site_list_lake_n$Site,
+                          charname = .x,
+                          legend = .y)+ 
+          labs(color = NULL, fill = NULL, shape = NULL, linetype = NULL),
+          tooltip = 'text')) |>
+       set_names(char_list_lake_n) #name plots to refer to them by char name
 
 # Use plot list to create matrix of plots (plotly subplot)
 
-#+++++++++++++ ENDED HERE +++++++++++++++++
-# Problems arise when some sites don't have TN or TP. Have to
-# figure that out first, rather than just assume each site has TN and/or TP
-#++++++++++++++++++++++++++++++++++++++++++
-
-
 comp_plots_lake_n_final <- subplot(comp_plots_lake_n[1:length(comp_plots_lake_n)],
-                         titleY = TRUE, titleX = FALSE, margin = 0.05, nrows = 1) %>% 
+                           titleY = TRUE, titleX = FALSE, margin = 0.05, nrows = 1) |> 
   # turn off subplot legend, manually set height and width of subplot
-  style(showlegend = FALSE) %>% layout(autosize = FALSE)#, width = 900, height = 300)
+                           style(showlegend = FALSE) |> 
+                           layout(autosize = FALSE)#, width = 900, height = 300)
 
-num_sites_lake_n <- c(1:length(site_list_lake))
+num_sites_lake_n <- c(1:nrow(site_list_lake_n))
 
 # Turn on legend elements 
 for (i in 1:length(num_sites_lake_n)){
   comp_plots_lake_n_final$x$data[[i]]$showlegend <- TRUE #site (line/markers)
-  #comp_plots_lake_n_final$x$data[[length(comp_plots_lake_n_final$x$data)]]$showlegend <- TRUE #threshold line
-  #comp_plots_lake_n_final$x$data[[length(comp_plots_lake_n_final$x$data)]]$name <- "WQ Threshold" #set name
+  comp_plots_lake_n_final$x$data[[length(comp_plots_lake_n_final$x$data)]]$showlegend <- TRUE #threshold line
+  comp_plots_lake_n_final$x$data[[length(comp_plots_lake_n_final$x$data)]]$name <- "WQ Threshold" #set name
 }
 
 # Move legend down slightly and make it horizontal
-comp_plots_lake_n_final <- comp_plots_lake_n_final %>% layout(legend = list(x = 0, y = -0.12, orientation = "h"))
+comp_plots_lake_n_final <- comp_plots_lake_n_final |> layout(legend = list(x = 0, y = -0.12, orientation = "h"))
 
 ```
 
@@ -262,7 +290,7 @@ cat("## ", "Lakes","{.tabset}", "\n")
 cat("### ", "All Lakes","{.tabset}", "\n")
 
 # Create a physical parameter subtab if also reporting nutrients
-if(params$nutrient==TRUE) {cat("#### ", "Field Measurements", "\n")}
+if(nutrient == TRUE) {cat("#### ", "Field Measurements", "\n")}
 
 # Title of tab
 cat("<h2>Monthly Water Quality Measurements", paste0("(", parkcode, " ", current, ")"),"</h2>")
@@ -293,10 +321,11 @@ comp_plots_lake_p_final
 ## LAKES - Nutrient site comp plots                            
 ##------------------------------------------------------------------------------
 # Create nutrient subtab if reporting nutrients
-if(params$nutrient==TRUE) {cat("#### ", "Lab Chemistry", "\n")}
+if(nutrient == TRUE) {cat("#### ", "Lab Chemistry", "\n")}
 
 # Subtab title
-if(params$nutrient==TRUE) {cat("<h2>Monthly Water Quality Measurements", paste0("(", parkcode, " ", current, ")"),"</h2>")}
+if(nutrient == TRUE) {cat("<h2>Monthly Water Quality Measurements", 
+                        paste0("(", parkcode, " ", current, ")"),"</h2>")}
 
 # Figure caption
 fig_cap_comp_n <- htmltools::withTags(body(
@@ -311,10 +340,10 @@ fig_cap_comp_n <- htmltools::withTags(body(
                           "About the Data".'))
 
 # Figure caption
-if(params$nutrient==TRUE) {cat(as.character(fig_cap_comp_n))}
+if(nutrient == TRUE) {cat(as.character(fig_cap_comp_n))}
 ```
 ```{r n_site_comp_plots, results = 'show', out.height = "90%", eval = show_comp_n, include = show_comp_n}
-if(params$nutrient==TRUE) {comp_plots_lake_n_final}
+if(nutrient == TRUE) {comp_plots_lake_n_final}
 ```
 
 ```{r lake_site_tab_setup, warning = F, message = F}
@@ -322,33 +351,20 @@ if(params$nutrient==TRUE) {comp_plots_lake_n_final}
 ## LAKES - Physical site tab setup                          
 ##------------------------------------------------------------------------------
 # Create dataframe of physical parameters
-char_df_p <- map(site_list, ~getCharInfo(netnwd, parkcode = parkcode, sitecode = ., 
-                             category = params$cat, info = "CharName")) %>%  
-                 set_names(site_list) %>% unlist() %>% as.data.frame() 
-                 #unlisting matches a site to each param
+char_df_lake_p <- wdata_curr |> 
+  filter(month_num >=5) |> 
+  select(Site, Characteristic, SiteName, SiteType, Category) |> 
+  filter(Category == "physical") |> 
+  filter(SiteType == "Lake") |> unique()
 
-# Reorganize dataframe                 
-char_df_p$site_code <- substr(row.names(char_df_p), 1, 14) #select the site code
-colnames(char_df_p) <- c("char_name", "site_code") #rename columns
-rownames(char_df_p) <- c() #remove row names
-
-# Add site type to dataframe
-char_df_p <- char_df_p[c("site_code", "char_name")] %>% #rearrange column order
-  left_join(., site_key, by = c("site_code"="Site")) #add site type to dataframe
-  
-# Subset dataframe by lake sites
-char_df_lake_p <- char_df_p %>% filter(SiteType=="Lake")
-
-# Iterate on dataframe to create waterbands plots
-#2022 drop 1:4 NETN_ACAD_BOWL
-#2022 drop 29:32 NETN_ACAD_SAMP
-rng = c(5:28, 33:48)
-plot_list_lake_p <- 
-  map2(char_df_lake_p$site_code[rng], char_df_lake_p$char_name[rng], 
-                    ~waterbands(netnwd, parkcode = parkcode, sitecode = .x, 
-                              charname = .y, year_current = current,
-                              year_historic = from, legend = "bottom")) %>% 
-                    set_names(char_df_lake_p$site_code[rng])
+# Generate physical parameter plots
+plot_list_lake_p <- map2(char_df_lake_p$Site, char_df_lake_p$Characteristic, 
+                      ~ggplotly(
+                        waterbands(netnwd, parkcode = parkcode, sitecode = .x, 
+                                   charname = .y, year_current = current,
+                                   year_historic = from, legend = "none"), 
+                        tooltip = "text")) |> 
+                    set_names(char_df_lake_p$Site)
 ```
 
 ```{r lake_site_tab_setup_n, warning = F, message = F, eval = show_comp_n, include = show_comp_n}
@@ -356,48 +372,53 @@ plot_list_lake_p <-
 ## LAKES - Nutrient site tab setup                          
 ##------------------------------------------------------------------------------
 # Create dataframe of nutrient parameters
-char_df_lake_n <- map(site_list, ~getCharInfo(netnwd, parkcode = parkcode, sitecode = ., 
-                             category = "nutrients", info = "CharName")) %>%  
-                  set_names(site_list) %>% unlist() %>% as.data.frame() 
-                  #unlisting matches a site to each param
+char_df_lake_n <- wdata_curr |> 
+  filter(month_num >= 5) |>
+  select(Site, Characteristic, SiteName, SiteType, Category) |> 
+  filter(Characteristic %in% char_list_lake_n) |> 
+  filter(SiteType == "Lake")|> unique() 
 
-# Reorganize dataframe
-char_df_lake_n$site_code <- substr(row.names(char_df_lake_n), 1, 14) #select the site code
-colnames(char_df_lake_n) <- c("charname", "sitecode") #rename columns
-rownames(char_df_lake_n) <- c() #remove row names
+# Turn off all legends except last in list to remove legend duplicates from subplot
+boxplot_legend_lake_n <- rep(c(rep(FALSE, length(char_list_lake_n)-1), TRUE), 
+                             length(unique(char_df_lake_n$Site)))
 
-# Select target nutrients by site
-char_df_lake_n <- char_df_lake_n[c("sitecode", "charname")] %>% 
-  left_join(., site_key, by = c("sitecode"="Site")) %>% #add site type to dataframe
-  filter((SiteType=="Lake" & charname %in% nutrients_lake))# | (SiteType=="Stream" & charname %in% nutrients_stream))
-
-# Iterate on dataframe to create nutrient plots
-plot_list_lake_n <- map2(char_df_lake_n$sitecode, char_df_lake_n$charname, 
-                    ~waterboxplot(sitecode=.x, charname=.y)) %>% 
-                    set_names(char_df_lake_n$sitecode)
+# Generate nutrient plots
+plot_list_lake_n <- 
+    if(plottype == "bands"){
+      map2(char_df_lake_n$Site, char_df_lake_n$Characteristic, 
+           ~ggplotly(
+              waterbands(netnwd, parkcode = parkcode, sitecode = .x, 
+                         charname = .y, year_current = current,
+                         year_historic = from, legend = "none"), 
+              tooltip = "text")) |> 
+      set_names(char_df_lake_n$Site)
+} else {
+      pmap(list(char_df_lake_n$Site, char_df_lake_n$Characteristic, boxplot_legend_lake_n),
+          ~waterboxplot(sitecode = ..1, charname = ..2, legend = ..3)) |> 
+           set_names(char_df_lake_n$Site)
+}
 
 ```
 
-```{r lake_site_tabs, warning = F, message = F, results='asis'}
+```{r lake_site_tabs, warning = F, message = F, results = 'asis'}
 ##------------------------------------------------------------------------------
 ## LAKES - Site tabs                       
 ##------------------------------------------------------------------------------
 # Loop on list of sites to create tabs for each site and fill them with plots
-# 2022 drop BOWL and SAMP
-for(i in #seq_along(site_list_lake[
-  c(2:7, 9:12)
-#  ])
-  ){
-  #i = 2
-  site <- site_list_lake[i] # change back to i
-  site_name <- getSiteInfo(netnwd, parkcode = parkcode, sitecode = site, 
-                          info = "SiteName")
+
+for(i in seq_along(site_list_lake$Site)){
+  #i = 3 is 0 6 3
+  site <- site_list_lake$Site[i] 
+  site_name <- site_list_lake$SiteName[site_list_lake$Site == site]
   
   num_plots_p <- length(plot_list_lake_p[names(plot_list_lake_p) == site])
-  num_plots_n <- ifelse(exists("plot_list_lake_n") & params$nutrient == TRUE, length(plot_list_lake_n[names(plot_list_lake_n) == site]), 0)
   
+  num_plots_n <- ifelse(exists("plot_list_lake_n") & nutrient == TRUE, 
+                 length(plot_list_lake_n[names(plot_list_lake_n) == site]), 0)
+
   plot_title <- htmltools::withTags(h2('Historic', paste0('(',from, '–', to,')'),
-                                                'vs. Current', paste0('(',current,')'), 'Measurements'))
+                 'vs. Current', paste0('(',current,')'), 'Measurements'))
+  
   # Physical parameters (waterbands) figure caption                                               
   fig_cap_p <- htmltools::withTags(body('The plots below show historic ranges for', site_name, 
                                         'based on the range of measurements collected from',
@@ -432,135 +453,24 @@ for(i in #seq_along(site_list_lake[
   
   # Physical subplot
   subplots_p <- subplot(plot_list_lake_p[names(plot_list_lake_p) == site][1:num_plots_p],
-                      titleY = TRUE, titleX = FALSE, margin = 0.05,
-                      nrows = ifelse(num_plots_p > 4, 3, 2),
-                      heights = if(num_plots_p > 4) {c(0.3,0.35,0.3)}) %>% 
-             layout(legend = list(x = 0, y = ifelse(num_plots_p > 4, -0.05, -0.08),
-                                  orientation = "h"))
+                        titleY = TRUE, titleX = FALSE, margin = 0.05,
+                        nrows = ifelse(num_plots_p > 4, 3, 2),
+                        heights = if(num_plots_p > 4) {c(0.3,0.35,0.3)}) |> 
+                layout(legend = list(x = 0, y = ifelse(num_plots_p > 4, -0.05, -0.08),
+                       orientation = "h"))
   
-  # Nutrient subplot
-  subplots_n <- if(params$nutrient == TRUE & exists("plot_list_lake_n")){
-             subplot(plot_list_lake_n[names(plot_list_lake_n) == site][1:num_plots_n],
-                      titleY = TRUE, titleX = FALSE, margin = 0.05,
-                      nrows = ifelse(num_plots_n>4, 3, 2),
-                      which_layout = 1) %>% 
-             layout(legend = list(x = 0, y = ifelse(num_plots_n>4, -0.05, -0.08),
-                                  orientation = "h"))}
-
-##------------------------------------------------------------------------------
-## Legend - physical                          
-##------------------------------------------------------------------------------
-  # Logical way to find and turn on poor water quality and WQ thresholds
-  # First turn them all off
-  for (i in seq(1:length(subplots_p$x$data))) {
-    subplots_p$x$data[[i]]$showlegend <- FALSE
-  }
+  # Nutrient subplot. Accomodate not every site having nutrient samples
+  subplots_n <- if(nutrient == TRUE & num_plots_n > 0){
+                   subplot(plot_list_lake_n[names(plot_list_lake_n) == site][1:num_plots_n],
+                           titleY = TRUE, titleX = FALSE, margin = 0.05,
+                           nrows = ifelse(num_plots_n>4, 3, 2),
+                           which_layout = 1) |> 
+                   layout(legend = list(x = 0, y = ifelse(num_plots_n > 4, -0.05, -0.08),
+                          orientation = "h"))} else {NULL}
   
-  # Find the first time the poor water quality point is used- returns the index number
-  # +++++ 20221109 FAILS HERE ++++++
-  # find_pwq <- data.frame(pwq = lapply(seq_along(subplots_p$x$data), 
-  #   function(i){
-  #     if(subplots_p$x$data[[i]]$name == "orange"){paste0(i)
-  #       } else{NA}}) %>% 
-  #     unlist()) %>% na.omit() %>% slice(1) %>% as.numeric()
-  # 
-  # Find the first time the water quality threshold is used- returns the index number
-  # find_wqt <- data.frame(wqt = lapply(seq_along(subplots_p$x$data),
-  #   function(i){
-  #     if(!is.null(subplots_p$x$data[[i]]$line$dash)){
-  #     if(subplots_p$x$data[[i]]$line$dash == "dash"){
-  #       paste0(i)
-  #       } else{NA}}
-  #       else{NA}
-  #     } ) %>% unlist()) %>%
-  #     na.omit() %>% slice(1) %>% as.numeric()
-  
-  # Turn on the legends that never change
-  subplots_p$x$data[[2]]$showlegend <- TRUE
-  subplots_p$x$data[[2]]$name = "Historic range"
-  subplots_p$x$data[[5]]$showlegend <- TRUE
-  subplots_p$x$data[[5]]$name = "Historic 95% range"
-  subplots_p$x$data[[8]]$showlegend <- TRUE
-  subplots_p$x$data[[8]]$name = "Historic 50% range"
-  subplots_p$x$data[[11]]$showlegend <- TRUE
-  subplots_p$x$data[[11]]$name = "Historic median"
-  subplots_p$x$data[[12]]$showlegend <- TRUE
-  subplots_p$x$data[[12]]$name = "Current value"
-  
-  # Turn on the poor water quality and thresholds if they existed
-  # +++++++ 20221109 FAILS HERE ++++++
-  # if(!is.na(find_pwq)){
-  #   subplots_p$x$data[[find_pwq]]$showlegend <- TRUE
-  #   subplots_p$x$data[[find_pwq]]$name <- "Poor WQ value"}
-  # 
-  # if(!is.na(find_wqt)){
-  #   subplots_p$x$data[[find_wqt]]$showlegend <- TRUE
-  #   subplots_p$x$data[[find_wqt]]$name <- "WQ threshold"}
-  # 
-##------------------------------------------------------------------------------
-## Legend - nutrients                          
-##------------------------------------------------------------------------------
-  # Logical way to find and turn on poor water quality and WQ thresholds
-  # First turn them all off
-  if(params$nutrient == TRUE & !is.null(subplots_n)){
-  for (i in seq(1:length(subplots_n$x$data))) {
-    subplots_n$x$data[[i]]$showlegend <- FALSE
-  }
-  
-  # Find the first time the historic range is used- returns the index number
-  find_hstr <- data.frame(hstr = lapply(seq_along(subplots_n$x$data),
-    function(i){
-      if(subplots_n$x$data[[i]]$name == "Historic range"){
-        paste0(i)
-        } else{NA}
-      } ) %>% unlist()) %>%
-      na.omit() %>% slice(1) %>% as.numeric()
-  
-   # Find the first time the current value is used- returns the index number
-  find_ctv <- data.frame(ctv = lapply(seq_along(subplots_n$x$data),
-    function(i){
-      # Check that the point has a y value (exists on the plot)
-      y_check <- grepl("y",subplots_n$x$data[[i]]$y, fixed=TRUE) %>% unique()
-      if(subplots_n$x$data[[i]]$name == "Current value" & y_check==FALSE){paste0(i)
-        } else{NA}
-      } ) %>% unlist()) %>%
-      na.omit() %>% slice(1) %>% as.numeric()
-  
-  # Find the first time the poor water quality point is used- returns the index number
-  find_pwq <- data.frame(pwq = lapply(seq_along(subplots_n$x$data),
-    function(i){
-      # Check that the point has a y value (exists on the plot)
-      y_check <- grepl("y",subplots_n$x$data[[i]]$y, fixed=TRUE) %>% unique()
-      if(subplots_n$x$data[[i]]$name == "Poor WQ value" & y_check==FALSE){paste0(i)
-        } else{NA}}) %>%
-      unlist()) %>% na.omit() %>% slice(1) %>% as.numeric()
-
-  # Find the first time the water quality threshold is used- returns the index number
-  find_wqt <- data.frame(wqt = lapply(seq_along(subplots_n$x$data),
-    function(i){
-      if(subplots_n$x$data[[i]]$name == "WQ threshold"){
-        paste0(i)
-        } else{NA}
-      } ) %>% unlist()) %>%
-      na.omit() %>% slice(1) %>% as.numeric()
-
-  # Turn on the historic, current, poor WQ, and threshold legends if they exist
-  if(!is.na(find_hstr)){
-    subplots_n$x$data[[find_hstr]]$showlegend <- TRUE
-    }
-  
-  if(!is.na(find_ctv)){
-    subplots_n$x$data[[find_ctv]]$showlegend <- TRUE
-    }
-  
-  if(!is.na(find_pwq)){
-    subplots_n$x$data[[find_pwq]]$showlegend <- TRUE
-    }
-
-  if(!is.na(find_wqt)){
-    subplots_n$x$data[[find_wqt]]$showlegend <- TRUE
-    }
-  } # end of if(params$nutrient == T & !is.null(subplots_n))
+  # set up conditional eval in knit tabs below
+  subplot_n_eval = ifelse(is.null(subplots_n), FALSE, TRUE) 
+  subplot_n_bands = ifelse(subplot_n_eval == TRUE & plottype == 'bands', TRUE, FALSE)
 ##------------------------------------------------------------------------------
 ## Knit tabs                          
 ##------------------------------------------------------------------------------
@@ -573,7 +483,7 @@ for(i in #seq_along(site_list_lake[
   # Variables within {{}} are replaced by their value when the report is knit
   
   # if NOT reporting nutrients, use physical parameter template
-    if(params$nutrient == FALSE) {
+    if(nutrient == FALSE) {
     template <- paste0(
       "### {{site_name}}\n", #create tab with site name
       #create chunk and set chunk options (height, width, echo)
@@ -583,12 +493,24 @@ for(i in #seq_along(site_list_lake[
       "fig_cap_p\n", #caption
       "subplots_p\n", #physical subplots
       "```\n", #close chunk
+      "\n",
+      
+      "```{r fig.height=0.18, fig.width = 9.2, echo = FALSE, dpi=300}\n",
+      "legg",
+      "\n",
+      "```\n",
+      
+      "\n",
       "\n"
   )
     # if reporting nutrients, create physical and nutrient subtabs 
     } else {template <- paste0(
       "### {{site_name}}{.tabset}\n", #create tab with site name
-      "#### Field Measurements\n", #physical subtab
+      
+      "```{r echo = FALSE, results = 'asis', eval = subplot_n_eval}\n
+      cat('#### Field Measurements {.tabset}\n') 
+      ```\n",
+      
       "```{r {{site_p}}, fig.height=",fig_height_p, ", fig.width=", fig_width,", echo = FALSE}\n",
       "plot_title\n", #title of tab
       "\n",
@@ -596,13 +518,31 @@ for(i in #seq_along(site_list_lake[
       "subplots_p\n", #physical subplots
       "```\n",
       "\n", #this break is necessary for the subtabs to knit correctly
-      "#### Lab Chemistry\n", #nutrient subtab
-      "```{r {{site_n}}, fig.height=",fig_height_n, ", fig.width=", fig_width,", echo = FALSE}\n",
+      
+      "```{r fig.height=0.18, fig.width = 9.2, echo = FALSE, dpi=300}\n",
+      "legg",
+      "\n",
+      "```\n",
+      "\n",
+      
+      "```{r echo = FALSE, results = 'asis', eval = subplot_n_eval}\n
+      cat('#### Lab Chemistry {.tabset}\n') 
+      ```\n",
+
+      "```{r {{site_n}}, fig.height =", fig_height_n, ", fig.width =", fig_width,", echo = FALSE, eval = subplot_n_eval}\n",
       "plot_title\n", #title of tab
       "\n",
       "fig_cap_n\n", #caption
-      "subplots_n\n", #nutrient subplots
+      "subplots_n", #nutrient subplots
+      "\n",
       "```\n",
+      "\n",
+      
+      "```{r fig.height=0.18, fig.width = 9.2, echo = FALSE, dpi=300, eval = subplot_n_bands}\n",
+      "legg",
+      "\n",
+      "```\n",
+      
       "\n"
   )
 }
@@ -622,86 +562,97 @@ for(i in #seq_along(site_list_lake[
 ## STREAMS - Physical site comp setup
 ##------------------------------------------------------------------------------
 # List of physical stream parameters (includes discharge)
-char_list_stream_p <- getCharInfo(netnwd, parkcode = parkcode, category = params$cat, 
-                           info = "CharName") %>%
-               unique() #%>% #remove duplicates
-               #.[!.=="Discharge_cfs"] #remove discharge
+char_list_stream_p <- sort(unique(
+  wdata_curr$Characteristic[wdata_curr$Category == 'physical' & 
+                              wdata_curr$SiteType == "Stream" &
+                              wdata_curr$Characteristic != "Discharge_cfs"]))
 
 # Turn off all legends except last in list to remove legend duplicates from subplot
 legend_list_stream_p <- c(rep("none", length(char_list_stream_p)-1), "bottom")
 
 # Create list of plots comparing physical parameters across all lakes in park
 comp_plots_stream_p <- purrr::map2(char_list_stream_p, legend_list_stream_p,
-                            ~watersite_comps(netnwd, year = current, 
-                                             parkcode = parkcode, 
-                                             sitecode = site_list_stream,
-                                             charname = .x,
-                                             legend = .y)) %>%
-  set_names(char_list_stream_p) #name plots to refer to them by char name
+                         ~ggplotly(
+                           watersite_comps(netnwd, year = current, 
+                                           parkcode = "ACAD", 
+                                           sitecode = site_list_stream_p$Site,
+                                           charname = .x,
+                                           legend = .y) + 
+                           labs(color = NULL, fill = NULL, 
+                                shape = NULL, linetype = NULL),
+                           tooltip = "text")) |>
+                       set_names(char_list_stream_p) #name plots to refer to them by char name
 
-heights_stream_p <- c(0.3,0.35,0.3)
+heights_stream_p <- c(0.5, 0.5)
 
 # Use plot list to create matrix of plots (plotly subplot)
 comp_plots_stream_p_final <- subplot(comp_plots_stream_p[1:length(comp_plots_stream_p)],
-                                titleY = TRUE, titleX = FALSE, margin = 0.05,
-                                #create 3 rows if more than 4 plots, otherwise 2 rows
-                                nrows = ifelse(length(comp_plots_stream_p)> 4, 3, 2),
-                                #set height of each row (default makes middle row shorter)
-                                heights = heights_stream_p) %>% 
-                            # turn off subplot legend
-                            style(showlegend = FALSE) %>% 
-                            # manually set width and height of subplot
-                            layout(autosize = FALSE, width = 900, height = 650)
+                                     titleY = TRUE, titleX = FALSE, margin = 0.08,
+                                     #create 3 rows if more than 4 plots, otherwise 2 rows
+                                     nrows = ifelse(length(comp_plots_stream_p)> 4, 3, 2),
+                                     #set height of each row (default makes middle row shorter)
+                                     heights = heights_stream_p) |> 
+  # turn off subplot legend
+  style(showlegend = FALSE) |> 
+  # manually set width and height of subplot
+  layout(autosize = FALSE)#, width = 900, height = 650)
 
-num_sites_stream_p <- c(1:length(site_list_stream))
+num_sites_stream_p <- c(1:nrow(site_list_stream_p))
 
 # Turn on legend elements 
 for (i in 1:length(num_sites_stream_p)){
   comp_plots_stream_p_final$x$data[[i]]$showlegend <- TRUE #site (line/markers)
-  #comp_plots_stream_p_final$x$data[[length(comp_plots_stream_p_final$x$data)]]$showlegend <- TRUE #threshold line
-  #comp_plots_stream_p_final$x$data[[length(comp_plots_stream_p_final$x$data)]]$name <- "WQ Threshold" #set name
+  comp_plots_stream_p_final$x$data[[length(comp_plots_stream_p_final$x$data)]]$showlegend <- TRUE #threshold line
+  comp_plots_stream_p_final$x$data[[length(comp_plots_stream_p_final$x$data)]]$name <- "WQ Threshold" #set name
 }
 
 # Move legend down slightly and make it horizontal
-comp_plots_stream_p_final <- comp_plots_stream_p_final %>% layout(legend = list(x = 0, y = -0.05, orientation = "h"))
+comp_plots_stream_p_final <- comp_plots_stream_p_final |> layout(legend = list(x = 0, y = -0.15, orientation = "h"))
 ```
+
 ```{r stream_comp_setup_n, echo = F, warning = F, message = F, eval = show_comp_n, error = TRUE}
 ##------------------------------------------------------------------------------
 ## STREAMS - Nutrients site comp setup
 ##------------------------------------------------------------------------------
 # List of nutrient parameters to include in site comparison
-char_list_stream_n <- c("TN_mgL", "TP_ugL")
+char_list_stream_n <- c("TN_mgL", "TP_ugL", "ANC_ueqL")
 
 # Turn off all legends except last in list to remove legend duplicates from subplot
 legend_list_stream_n <- c(rep("none", length(char_list_stream_n)-1), "bottom")
 
-# Create list of plots comparing physical parameters across all sites in park
-comp_plots_stream_n <- purrr::map2(char_list_stream_n, legend_list_stream_n,
-                            ~watersite_comps(netnwd, 
-                                             year = current, 
-                                             parkcode = parkcode, 
-                                             sitecode = site_list_stream,
-                                             charname = .x,
-                                             legend = .y)) %>%
-  set_names(char_list_stream_n) #name plots to refer to them by char name
+comp_plots_stream_n <- 
+  map2(char_list_stream_n, legend_list_stream_n,
+       ~ggplotly(
+          watersite_comps(netnwd, 
+                          year = current, 
+                          parkcode = parkcode, 
+                          sitecode = site_list_stream_n$Site,
+                          charname = .x,
+                          legend = .y)+ 
+          labs(color = NULL, fill = NULL, shape = NULL, linetype = NULL),
+          tooltip = 'text')) |>
+       set_names(char_list_stream_n) #name plots to refer to them by char name
 
 # Use plot list to create matrix of plots (plotly subplot)
-comp_plots_stream_n_final <- subplot(comp_plots_stream_n[1:length(comp_plots_stream_n)],
-                              titleY = TRUE, titleX = FALSE, margin = 0.05, nrows = 1) %>% 
-  # turn off subplot legend, manually set height and width of subplot
-  style(showlegend = FALSE) %>% layout(autosize = FALSE, width = 900, height = 300)
 
-num_sites_stream_n <- c(1:length(site_list_stream))
+comp_plots_stream_n_final <- subplot(comp_plots_stream_n[1:length(comp_plots_stream_n)],
+                           titleY = TRUE, titleX = FALSE, margin = 0.05, nrows = 1) |> 
+  # turn off subplot legend, manually set height and width of subplot
+                           style(showlegend = FALSE) |> 
+                           layout(autosize = FALSE)#, width = 900, height = 300)
+
+num_sites_stream_n <- c(1:nrow(site_list_stream_n))
 
 # Turn on legend elements 
 for (i in 1:length(num_sites_stream_n)){
   comp_plots_stream_n_final$x$data[[i]]$showlegend <- TRUE #site (line/markers)
-  #comp_plots_stream_n_final$x$data[[length(comp_plots_stream_n_final$x$data)]]$showlegend <- TRUE #threshold line
-  #comp_plots_stream_n_final$x$data[[length(comp_plots_stream_n_final$x$data)]]$name <- "WQ Threshold" #set name
+  comp_plots_stream_n_final$x$data[[length(comp_plots_stream_n_final$x$data)]]$showlegend <- TRUE #threshold line
+  comp_plots_stream_n_final$x$data[[length(comp_plots_stream_n_final$x$data)]]$name <- "WQ Threshold" #set name
 }
 
 # Move legend down slightly and make it horizontal
-comp_plots_stream_n_final <- comp_plots_stream_n_final %>% layout(legend = list(x = 0, y = -0.12, orientation = "h"))
+comp_plots_stream_n_final <- comp_plots_stream_n_final |> layout(legend = list(x = 0, y = -0.12, orientation = "h"))
+
 ```
 
 ```{r stream_p_site_comp, results = 'asis', include = show_comp}
@@ -715,7 +666,7 @@ cat("## ", "Streams","{.tabset}", "\n")
 cat("### ", "All Streams","{.tabset}", "\n")
 
 # Create a physical parameter subtab if also reporting nutrients
-if(params$nutrient==TRUE) {cat("#### ", "Field Measurements", "\n")}
+if(nutrient == TRUE) {cat("#### ", "Field Measurements", "\n")}
 
 # Title of tab
 cat("<h2>Monthly Water Quality Measurements", paste0("(", parkcode, " ", current, ")"),"</h2>")
@@ -736,43 +687,38 @@ comp_plots_stream_p_final
 ## STREAMS - Nutrient site comp plots                            
 ##------------------------------------------------------------------------------
 # Create nutrient subtab if reporting nutrients
-if(params$nutrient==TRUE) {cat("#### ", "Lab Chemistry", "\n")}
+if(nutrient == TRUE) {cat("#### ", "Lab Chemistry", "\n")}
 
 # Subtab title
-if(params$nutrient==TRUE) {cat("<h2>Monthly Water Quality Measurements", paste0("(", parkcode, " ", current, ")"),"</h2>")}
+if(nutrient == TRUE) {cat("<h2>Monthly Water Quality Measurements", paste0("(", parkcode, " ", current, ")"),"</h2>")}
 
 # Figure caption
-if(params$nutrient==TRUE) {cat(as.character(fig_cap_comp_n))}
+if(nutrient == TRUE) {cat(as.character(fig_cap_comp_n))}
 ```
 ```{r stream_n_site_comp_plots, results = 'show', out.height = "90%", eval = show_comp}
-if(params$nutrient==TRUE) {comp_plots_stream_n_final}
+if(nutrient == TRUE) {comp_plots_stream_n_final}
 ```
 
 ```{r stream_site_tab_setup, warning = F, message = F}
 ##------------------------------------------------------------------------------
 ## STREAMS - Physical site tab setup
 ##------------------------------------------------------------------------------
-# # Create dataframe of physical parameters
-# char_df_stream_p <- map(site_list, ~getCharInfo(netnwd, parkcode = parkcode, sitecode = .,
-#                              category = params$cat, info = "CharName")) %>%
-#                  set_names(site_list) %>% unlist() %>% as.data.frame()
-#                  #unlisting matches a site to each param
-# 
-# # Reorganize dataframe
-# char_df_stream_p$site_code <- substr(row.names(char_df_stream_p), 1, 14) #select the site code
-# colnames(char_df_stream_p) <- c("char_name", "site_code") #rename columns
-# rownames(char_df_stream_p) <- c() #remove row names
-# char_df_stream_p <- char_df_stream_p[c("site_code", "char_name")] #rearrange column order
+# Create dataframe of physical parameters
+char_df_stream_p <- wdata_curr |> 
+  filter(month_num >=5) |> 
+  select(Site, Characteristic, SiteName, SiteType, Category) |> 
+  filter(Category == "physical") |> 
+  #filter(!Characteristic %in% "Discharge_cfs") |> 
+  filter(SiteType == "Stream") |> unique()
 
-# Filter physical parameter dataframe (defined in lake tab setup) by stream
-char_df_stream_p <- char_df_p %>% filter(SiteType=="Stream")
-
-# Iterate on dataframe to create waterbands plots
-plot_list_stream_p <- map2(char_df_stream_p$site_code, char_df_stream_p$char_name,
-                  ~waterbands(netnwd, parkcode = parkcode, sitecode = .x,
-                              charname = .y, year_current = current,
-                              year_historic = from, legend = "bottom")) %>%
-             set_names(char_df_stream_p$site_code)
+# Generate physical parameter plots
+plot_list_stream_p <- map2(char_df_stream_p$Site, char_df_stream_p$Characteristic, 
+                      ~ggplotly(
+                        waterbands(netnwd, parkcode = parkcode, sitecode = .x, 
+                                   charname = .y, year_current = current,
+                                   year_historic = from, legend = "none"), 
+                        tooltip = "text")) |> 
+                      set_names(char_df_stream_p$Site)
 ```
 
 ```{r stream_site_tab_setup_n, echo = F, warning = F, message = F, eval = show_comp_n, error = TRUE}
@@ -780,34 +726,32 @@ plot_list_stream_p <- map2(char_df_stream_p$site_code, char_df_stream_p$char_nam
 ## STREAMS - Nutrient site tab setup
 ##------------------------------------------------------------------------------
 # Create dataframe of nutrient parameters
-char_df_stream_n <- map(site_list, ~getCharInfo(netnwd, parkcode = parkcode, sitecode = .,
-                             category = "nutrients", info = "CharName")) %>%
-                 set_names(site_list) %>% unlist() %>% as.data.frame()
-                 #unlisting matches a site to each param
+char_df_stream_n <- wdata_curr |> 
+  filter(month_num >= 5) |>
+  select(Site, Characteristic, SiteName, SiteType, Category) |> 
+  filter(Characteristic %in% char_list_stream_n) |> 
+  filter(SiteType == "Stream")|> unique() 
 
-# Reorganize dataframe
-char_df_stream_n$site_code <- substr(row.names(char_df_stream_n), 1, 14) #select the site code
-colnames(char_df_stream_n) <- c("charname", "sitecode") #rename columns
-rownames(char_df_stream_n) <- c() #remove row names
+# Turn off all legends except last in list to remove legend duplicates from subplot
+boxplot_legend_stream_n <- rep(c(rep(FALSE, length(char_list_stream_n)-1), TRUE), 
+                             length(unique(char_df_stream_n$Site)))
 
-# Select target nutrients by site
-char_df_stream_n <- char_df_stream_n[c("sitecode", "charname")] %>%
-  left_join(., site_key, by = c("sitecode"="Site")) %>% #add site type to dataframe
-  filter((SiteType=="Stream" & charname %in% nutrients_stream))
+# Generate nutrient plots
+plot_list_stream_n <- 
+    if(plottype == "bands"){
+      map2(char_df_stream_n$Site, char_df_stream_n$Characteristic, 
+           ~ggplotly(
+              waterbands(netnwd, parkcode = parkcode, sitecode = .x, 
+                         charname = .y, year_current = current,
+                         year_historic = from, legend = "none"), 
+              tooltip = "text")) |> 
+      set_names(char_df_stream_n$Site)
+} else {
+      pmap(list(char_df_stream_n$Site, char_df_stream_n$Characteristic, boxplot_legend_stream_n),
+          ~waterboxplot(sitecode = ..1, charname = ..2, legend = ..3)) |> 
+           set_names(char_df_stream_n$Site)
+      }
 
-# Iterate on dataframe to create nutrient plots
-plot_list_stream_n <- map2(char_df_stream_n$sitecode, char_df_stream_n$charname,
-                      ~waterboxplot(sitecode=.x, charname=.y)) %>%
-                      set_names(char_df_stream_n$sitecode)
-
-# Look for NULL plots in stream plot list
-null_check <- sapply(plot_list_stream_n[names(plot_list_stream_n)], is.null) %>%
-  # remove NULL plots (those that return TRUE for is.null)
-  .[. == FALSE] %>%
-  # get the site names 
-  names() %>% 
-  # create unique list of sites that have current year data
-  unique()
 
 ```
 
@@ -816,17 +760,17 @@ null_check <- sapply(plot_list_stream_n[names(plot_list_stream_n)], is.null) %>%
 ## STREAMS - Site tabs                        
 ##------------------------------------------------------------------------------
 # Loop on list of sites to create tabs for each site and fill them with plots
-for(i in seq_along(site_list_stream)){
-  site <- site_list_stream[i] # change back to i
-  site_name <- getSiteInfo(netnwd, parkcode = parkcode, sitecode = site, 
-                          info = "SiteName")
+for(i in seq_along(site_list_stream$Site)){
+  site <- site_list_stream$Site[i] # change back to i
+  site_name <- site_list_stream$SiteName[site_list_stream$Site == site]
   
   num_plots_p <- length(plot_list_stream_p[names(plot_list_stream_p) == site])
-  num_plots_n <- ifelse(params$nutrient == TRUE & exists("plot_list_stream_n"), 
-                        length(plot_list_stream_n[names(plot_list_stream_n) == site]), 0)
+  
+  num_plots_n <- ifelse(nutrient == TRUE & exists("plot_list_stream_n"), 
+                 length(plot_list_stream_n[names(plot_list_stream_n) == site]), 0)
   
   plot_title <- htmltools::withTags(h2('Historic', paste0('(',from, '–', to,')'),
-                                                'vs. Current', paste0('(',current,')'), 'Measurements'))
+                  'vs. Current', paste0('(',current,')'), 'Measurements'))
   # Physical parameters (waterbands) figure caption                                               
   fig_cap_p <- htmltools::withTags(body('The plots below show historic ranges for', site_name, 
                                         'based on the range of measurements collected from',
@@ -863,151 +807,24 @@ for(i in seq_along(site_list_stream)){
   # Physical subplot
   subplots_p <- subplot(plot_list_stream_p[names(plot_list_stream_p) == site][1:num_plots_p],
                       titleY = TRUE, titleX = FALSE, margin = 0.05,
-                      nrows = ifelse(num_plots_p>4, 3, 2),
-                      heights = if(num_plots_p>4) {c(0.3,0.35,0.3)}) %>% 
-             layout(legend = list(x = 0, y = ifelse(num_plots_p>4, -0.05, -0.08),
-                                  orientation = "h"))
+                      nrows = ifelse(num_plots_p > 4, 3, 2),
+                      heights = if(num_plots_p > 4) {c(0.3, 0.35, 0.3)}) |> 
+                layout(legend = list(x = 0, y = ifelse(num_plots_p>4, -0.05, -0.08),
+                                     orientation = "h"))
   
-  # Nutrient subplot
-  subplots_n <- if(params$nutrient == TRUE & exists("plot_list_stream_n")){ 
+  # Nutrient subplot. Accomodate not every site having nutrient samples
+  subplots_n <- if(nutrient == TRUE & num_plots_n > 0){ 
                  subplot(plot_list_stream_n[names(plot_list_stream_n) == site][1:num_plots_n],
                          titleY = TRUE, titleX = FALSE, margin = 0.05,
-                         nrows = ifelse(num_plots_n>4, 3, 2),
-                         which_layout = 1) %>% 
-                layout(legend = list(x = 0, y = ifelse(num_plots_n>4, -0.05, -0.08),
-                                     orientation = "h"))}
+                         nrows = ifelse(num_plots_n > 4, 3, 2),
+                         which_layout = 1) |> 
+                 layout(legend = list(x = 0, y = ifelse(num_plots_n > 4, -0.05, -0.08),
+                                      orientation = "h"))} else {NULL}
+  
+  # set up conditional eval in knit tabs below
+  subplot_n_eval = ifelse(is.null(subplots_n), FALSE, TRUE)
+  subplot_n_bands = ifelse(subplot_n_eval == TRUE & plottype == 'bands', TRUE, FALSE)
 
-  # Aunt Betty Inlet legend settings test
-  # subplots_n$x$data[[4]]$showlegend <- FALSE
-  # subplots_n$x$data[[7]]$showlegend <- FALSE
-  
-##------------------------------------------------------------------------------
-## Legend - physical                           
-##------------------------------------------------------------------------------
-  # Logical way to find and turn on poor water quality and WQ thresholds
-  # First turn them all off
-  for (i in seq(1:length(subplots_p$x$data))) {
-    subplots_p$x$data[[i]]$showlegend <- FALSE
-  }
-  
-  # Find the first time the poor water quality point is used- returns the index number
-  # ++++++ 20221109 FAILS HERE ++++++++
-  # find_pwq <- data.frame(pwq = lapply(seq_along(subplots_p$x$data), 
-  #   function(i){
-  #     if(subplots_p$x$data[[i]]$name == "orange"){paste0(i)
-  #       } else{NA}}) %>% 
-  #     unlist()) %>% na.omit() %>% slice(1) %>% as.numeric()
-  # 
-  # # Find the first time the water quality threshold is used- returns the index number
-  # find_wqt <- data.frame(wqt = lapply(seq_along(subplots_p$x$data),
-  #   function(i){
-  #     if(!is.null(subplots_p$x$data[[i]]$line$dash)){
-  #     if(subplots_p$x$data[[i]]$line$dash == "dash"){
-  #       paste0(i)
-  #       } else{NA}}
-  #       else{NA}
-  #     } ) %>% unlist()) %>%
-  #     na.omit() %>% slice(1) %>% as.numeric()
-  
-  # Turn on the legends that never change
-  subplots_p$x$data[[2]]$showlegend <- TRUE
-  subplots_p$x$data[[2]]$name = "Historic range"
-  subplots_p$x$data[[5]]$showlegend <- TRUE
-  subplots_p$x$data[[5]]$name = "Historic 95% range"
-  subplots_p$x$data[[8]]$showlegend <- TRUE
-  subplots_p$x$data[[8]]$name = "Historic 50% range"
-  subplots_p$x$data[[11]]$showlegend <- TRUE
-  subplots_p$x$data[[11]]$name = "Historic median"
-  subplots_p$x$data[[12]]$showlegend <- TRUE
-  subplots_p$x$data[[12]]$name = "Current value"
-  
-  # # Turn on the poor water quality and thresholds if they existed
-  #+++++++ 20221109 FAILS HERE +++++++
-  # if(!is.na(find_pwq)){
-  #   subplots_p$x$data[[find_pwq]]$showlegend <- TRUE
-  #   subplots_p$x$data[[find_pwq]]$name <- "Poor WQ value"}
-  # 
-  # if(!is.na(find_wqt)){
-  #   subplots_p$x$data[[find_wqt]]$showlegend <- TRUE
-  #   subplots_p$x$data[[find_wqt]]$name <- "WQ threshold"}
-  
-##------------------------------------------------------------------------------
-## Legend - nutrients                         
-##------------------------------------------------------------------------------
-  # Logical way to find and turn on poor water quality and WQ thresholds
-  # First turn them all off
-  if(params$nutrient == TRUE & !is.null(subplots_n)){
-  for (i in seq(1:length(subplots_n$x$data))) {
-    subplots_n$x$data[[i]]$showlegend <- FALSE
-  }
-  
-  # Find the first time the historic range is used- returns the index number
-  find_hstr <- data.frame(hstr = lapply(seq_along(subplots_n$x$data),
-    function(i){
-      if(subplots_n$x$data[[i]]$name == "Historic range"){
-        paste0(i)
-        } else{NA}
-      } ) %>% unlist()) %>%
-      na.omit() %>% slice(1) %>% as.numeric()
-  
-  # Find the first time the current value is used- returns the index number
-  find_ctv <- data.frame(ctv = lapply(seq_along(subplots_n$x$data),
-    function(i){
-      # Check that the point has a y value (exists on the plot)
-      y_check <- grepl("y",subplots_n$x$data[[i]]$y, fixed=TRUE) %>% unique()
-      if(subplots_n$x$data[[i]]$name == "Current value" & y_check==FALSE){paste0(i)
-        } else{NA}
-      } ) %>% unlist()) %>%
-      na.omit() %>% slice(1) %>% as.numeric()
-  
-  # Find the first time the poor water quality point is used- returns the index number
-  find_pwq <- data.frame(pwq = lapply(seq_along(subplots_n$x$data),
-    function(i){
-      # Check that the point has a y value (exists on the plot)
-      y_check <- grepl("y",subplots_n$x$data[[i]]$y, fixed=TRUE) %>% unique()
-      if(subplots_n$x$data[[i]]$name == "Poor WQ value" & y_check==FALSE){paste0(i)
-        } else{NA}}) %>%
-      unlist()) %>% na.omit() %>% slice(1) %>% as.numeric()
-
-  # Find the first time the water quality threshold is used- returns the index number
-  find_wqt <- data.frame(wqt = lapply(seq_along(subplots_n$x$data),
-    function(i){
-      if(subplots_n$x$data[[i]]$name == "WQ threshold"){
-        paste0(i)
-        } else{NA}
-      } ) %>% unlist()) %>%
-      na.omit() %>% slice(1) %>% as.numeric()
-  
-  # If all variables are NA except for historic range, the historic range legend
-  # item does not appear in the legend (unclear why). 
-  # These solutions don't work.
-  # find_ctv <- ifelse((is.na(c(find_ctv, find_pwq, find_wqt))) == TRUE,
-  #                    1, NA)
-  # find_ctv <- 2
-  # find_ctv <- if(is.na(find_ctv) && is.na(find_pwq) && is.na(find_wqt)){1} else {find_ctv}
-  
-
-  # Turn on the historic, current, poor WQ, and threshold legends if they exist
-  if(!is.na(find_hstr)){
-    subplots_n$x$data[[find_hstr]]$showlegend <- TRUE
-    }
-  
-  if(!is.na(find_ctv)){
-    subplots_n$x$data[[find_ctv]]$showlegend <- TRUE
-    }
-  
-  if(!is.na(find_pwq)){
-    subplots_n$x$data[[find_pwq]]$showlegend <- TRUE
-    }
-
-  if(!is.na(find_wqt)){
-    subplots_n$x$data[[find_wqt]]$showlegend <- TRUE
-    }
-  
-  # Quick fix to get historic range legend item to appear. Just turning on [[1]]
-  # doesn't work. Unclear why - it appears as TRUE in the trace data. 
-  subplots_n$x$data[[2]]$showlegend <- TRUE
-  } #end of if(params$nutrient == TRUE & !is.null(subplots_n))
 ##------------------------------------------------------------------------------
 ## Knit tabs                          
 ##------------------------------------------------------------------------------
@@ -1023,37 +840,67 @@ for(i in seq_along(site_list_stream)){
   # Variables within {{}} are replaced by their value when the report is knit
   
   # if NOT reporting nutrients, use physical parameter template
-    if(params$nutrient == FALSE) {
+    if(nutrient == FALSE) {
     template <- paste0(
       "### {{site_name}}\n", #create tab with site name
       #create chunk and set chunk options (height, width, echo)
-      "```{r {{site_p}}, fig.height=",fig_height_p, ", fig.width=", fig_width,", echo = FALSE}\n",
+      "```{r {{site_p}}, fig.height=", fig_height_p, ", fig.width=", fig_width, ", echo = FALSE}\n",
       "plot_title\n", #title of tab
       "\n",
       "fig_cap_p\n", #caption
       "subplots_p\n", #physical subplots
       "```\n", #close chunk
+      "\n",
+      
+      "```{r fig.height=0.18, fig.width = 9.2, echo = FALSE, dpi=300}\n",
+      "legg",
+      "\n",
+      "```\n",
+      "\n",
       "\n"
   )
     
     # if reporting nutrients, create physical and nutrient subtabs 
     } else {template <- paste0(
-      "### {{site_name}}{.tabset}\n", #create tab with site name
-      "#### Field Measurements\n", #physical subtab
-      "```{r {{site_p}}, fig.height=",fig_height_p, ", fig.width=", fig_width,", echo = FALSE}\n",
+      "### {{site_name}} {.tabset}\n", #create tab with site name
+
+      "```{r echo = FALSE, results = 'asis', eval = subplot_n_eval}\n
+      cat('#### Field Measurements {.tabset}\n') 
+      ```\n",
+
+      "```{r fig.height=", fig_height_p, ", fig.width=", fig_width,", echo = FALSE}\n",
       "plot_title\n", #title of tab
       "\n",
       "fig_cap_p\n", #caption
       "subplots_p\n", #physical subplots
       "```\n",
       "\n", #this break is necessary for the subtabs to knit correctly
-      "#### Lab Chemistry\n", #nutrient subtab
-      "```{r {{site_n}}, fig.height=",fig_height_n, ", fig.width=", fig_width,", echo = FALSE}\n",
+      
+      "```{r fig.height=0.18, fig.width = 9.2, echo = FALSE, dpi=300}\n",
+      "legg",
+      "\n",
+      "```\n",
+      
+      "\n",
+      
+      "```{r echo = FALSE, results = 'asis', eval = subplot_n_eval}\n
+      cat('#### Lab Chemistry {.tabset}\n') 
+      ```\n",
+
+      "```{r fig.height=", fig_height_n, ", fig.width=", fig_width, ", echo = FALSE, eval = subplot_n_eval}\n",
       "plot_title\n", #title of tab
       "\n",
       "fig_cap_n\n", #caption
-      "subplots_n\n", #nutrient subplots
+      "subplots_n", #nutrient subplots
+      "\n",
       "```\n",
+      "\n",
+      
+      "```{r fig.height=0.18, fig.width = 9.2, echo = FALSE, dpi=300, eval = subplot_n_bands}\n",
+      "legg",
+      "\n",
+      "```\n",
+
       "\n"
   )
 }
@@ -1069,7 +916,7 @@ for(i in seq_along(site_list_stream)){
 ```
 
 ## About the Sites
-```{r leaflet, out.width="100%", message=F}
+```{r leaflet, out.width="100%", message=F, warning = F}
 
 NPSbasic<-"https://atlas-stg.geoplatform.gov/styles/v1/atlas-user/ck58pyquo009v01p99xebegr9/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1IjoiYXRsYXMtdXNlciIsImEiOiJjazFmdGx2bjQwMDAwMG5wZmYwbmJwbmE2In0.lWXK2UexpXuyVitesLdwUg"
 
@@ -1087,26 +934,24 @@ long_cent <- mean(c(bbox$LongE[bbox$ParkCode == parkcode], bbox$LongW[bbox$ParkC
 lat_cent <- mean(c(bbox$LatN[bbox$ParkCode == parkcode], bbox$LatS[bbox$ParkCode == parkcode]))
 
 # Find the first and last date of monitoring for each site
-years_active <- getWData(netnwd, parkcode = parkcode, category = params$cat) %>% 
- group_by(Site) %>%
+years_active <- wdata_full |>  
+ group_by(Site) |> 
  summarize(start_date = format(min(Date), "%b %Y"),
- last_date = format(max(Date), "%b %Y")) %>%
+ last_date = format(max(Date), "%b %Y")) |> 
  ungroup()
 
 # Compile water sites dataframe with codes, names, lat/long coordinates, and site type
-water_sites <- data.frame(ParkCode = getSiteInfo(netnwd, parkcode = parkcode, info = "ParkCode"),       
-                          SiteCode = getSiteInfo(netnwd, parkcode = parkcode, info = "SiteCode"),
-                          SiteName = getSiteInfo(netnwd, parkcode = parkcode, info = "SiteName"), 
-                          lat = getSiteInfo(netnwd, parkcode = parkcode, info = "lat"),          
-                          long = getSiteInfo(netnwd, parkcode = parkcode, info = "long"),
-                          type = getSiteInfo(netnwd, parkcode = parkcode, info = "type")) %>% 
-  # Add the active monitoring date range
-  left_join(years_active, by = c("SiteCode" = "Site")) %>% 
-  # Join descriptions from site info
-  left_join(site_csv, by = c("SiteCode", "ParkCode", "SiteName")) %>% 
-  # Create html link to the site photo
-  mutate(Link = paste0("<a href='https://doimspp.sharepoint.com/sites/NETN_Photo_Viewer/Water_Quality_Site_Photos/", 
-                       .$SiteCode, ".jpg' target='_blank'>Site Photo</a>"))
+water_sites1 <- data.frame(ParkCode = getSiteInfo(netnwd, parkcode = parkcode, info = "ParkCode"),       
+                           Site = getSiteInfo(netnwd, parkcode = parkcode, info = "SiteCode"),
+                           SiteName = getSiteInfo(netnwd, parkcode = parkcode, info = "SiteName"), 
+                           lat = getSiteInfo(netnwd, parkcode = parkcode, info = "lat"),          
+                           long = getSiteInfo(netnwd, parkcode = parkcode, info = "long"),
+                           type = getSiteInfo(netnwd, parkcode = parkcode, info = "type")) 
+water_sites2 <- left_join(water_sites1, years_active, by = c("Site"))
+water_sites <- left_join(water_sites2, site_csv, by = c("Site" = "SiteCode", "ParkCode", "SiteName")) 
+water_sites$Link = paste0(
+  "<a href='https://doimspp.sharepoint.com/sites/NETN_Photo_Viewer/Water_Quality_Site_Photos/", 
+   water_sites$Site, ".jpg' target='_blank'>Site Photo</a>")
 
 # Legend html generator
 # Source: https://stackoverflow.com/questions/47064921/leaflet-legend-for-addawesomemarkers-function-with-icons
@@ -1121,19 +966,22 @@ markerLegendHTML <- function(IconSet) {
     # Add each icon for ion library icons:
     for (Icon in IconSet) {
         if (Icon[["library"]] == "ion") {
-        legendHtml<- paste0(legendHtml,
-                            # marker and marker label div
-                            "<div style='width: auto; height: 45px; display: flex; align-items: center;'>",
-                             # awesome marker div
-                             "<div style='position: relative; display: inline-block; width: 35px; height: 45px;' 
-                               class='awesome-marker-icon-",Icon[["markerColor"]]," awesome-marker'>",
-                               # add icons and set color
-                               # class='ion ion-waterdrop icon-white' selects the correct library, icon, and color
-                               "<i style='margin-left: 4px; margin-top: 11px' class= 'ion ion-",Icon[["icon"]]," icon-",Icon[["iconColor"]],"'></i>",
-                             "</div>", # close awesome marker div
-                             # legend label div - use name set in IconSet
-                             "<div style='position: relative; display: inline-block; margin-left: 8px;'>", names(IconSet)[n] ,"</div>",
-                           "</div>") # close marker/marker label div    
+        legendHtml<- 
+          paste0(legendHtml,
+          # marker and marker label div
+          "<div style='width: auto; height: 45px; display: flex; align-items: center;'>",
+          # awesome marker div
+          "<div style='position: relative; display: inline-block; width: 35px; height: 45px;' 
+          class='awesome-marker-icon-", Icon[["markerColor"]]," awesome-marker'>",
+          # add icons and set color
+          # class='ion ion-waterdrop icon-white' selects the correct library, icon, and color
+          "<i style='margin-left: 4px; margin-top: 11px' class= 'ion ion-",
+          Icon[["icon"]]," icon-",Icon[["iconColor"]],"'></i>",
+          "</div>", # close awesome marker div
+          # legend label div - use name set in IconSet
+          "<div style='position: relative; display: inline-block; margin-left: 8px;'>", 
+            names(IconSet)[n] ,"</div>",
+          "</div>") # close marker/marker label div    
         }
         n <- n + 1
     } 
