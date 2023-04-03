@@ -20,8 +20,8 @@ library(dplyr)
 ```{r chunk_control}
 # Create controls that turn chunks on/off depending on the park code and category
 
-parkcode <- params$park
-category <- params$cat
+# parkcode <- params$park
+# category <- params$cat
 
 # Find state that park is in
 state <- case_when(
@@ -41,15 +41,15 @@ state_list <- c("CT", "MA", "ME", "NH", "NJ", "NY", "VT")
 # If state is in state_list, give it the value TRUE. All other states FALSE.
 # This turns on the appropriate state water quality chunk via 'include ='
 for (i in state_list) {
-  assign(i, if_else(i == state, TRUE, FALSE))
+  assign(i, ifelse(i == state, TRUE, FALSE))
 }
 
-# Same concept for category controls
-category_list <- c("physical", "nutrients")
-
-for (i in category_list){
-  assign(i, if_else(i == category, TRUE, FALSE))
-}
+# # Same concept for category controls
+# category_list <- c("physical", "nutrients")
+# 
+# for (i in category_list){
+#   assign(i, ifelse(i == category, TRUE, FALSE))
+# }
 
 ```
 
