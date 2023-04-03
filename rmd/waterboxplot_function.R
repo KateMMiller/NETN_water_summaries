@@ -1,14 +1,14 @@
 #-------------------------------------------------
 # Function to generate boxplot figures in plotly, only if params$plottype != 'bands'
 #-------------------------------------------------
-# parkcode = "ACAD"; sitecode = "NETN_ACAD_ABIN"; chars = c("ANC_ueqL", "TN_mgL", "TP_ugL")
+# parkcode = "MIMA"; sitecode = "NETN_MIMA_SA00"; chars = c("ANC_ueqL", "TN_mgL", "TP_ugL")
 # data = wdata_full
-#charname = chars[2]
+# charname = chars[2]
 # 
 # waterboxplot(data = wdata_full, parkcode = "ACAD",
-#              sitecode = "NETN_ACAD_ABIN", charname = chars[3], legend = T)
+#              sitecode = "NETN_MIMA_SA00", charname = chars[3])
 
-waterboxplot <- function(data = wdata_full, parkcode, sitecode, charname, legend = TRUE) {
+waterboxplot <- function(data = wdata_full, parkcode, sitecode, charname) {
   
   # params for package function
   category <- "nutrients"
@@ -117,6 +117,6 @@ waterboxplot <- function(data = wdata_full, parkcode, sitecode, charname, legend
                          hoverinfo = "text", # set tooltip text
                          line = list(color = "black", dash = "dash"),
                          name = "WQ threshold") |> 
-            layout(showlegend = legend)
+            layout(showlegend = FALSE)
   return(p)
 }

@@ -376,8 +376,8 @@ plot_list_n <-
          set_names(site_char_list_n$Site)
 
 } else {
-      pmap(list(site_char_list_n$Site, site_char_list_n$Characteristic, boxplot_legend_n),
-          ~waterboxplot(sitecode = ..1, charname = ..2, legend = ..3)) |> 
+      map2(site_char_list_n$Site, site_char_list_n$Characteristic,
+          ~waterboxplot(sitecode = .x, charname = .y)) |> 
            set_names(site_char_list_n$Site)
 }
 
@@ -395,6 +395,7 @@ for(i in seq_along(site_list)){
   site_name <- site_key$SiteName[site_key$Site == site]
   
   num_plots_p <- length(plot_list_p[names(plot_list_p) == site])
+  
   num_plots_n <- ifelse(exists("plot_list_n") & nutrient == TRUE, 
                         length(plot_list_n[names(plot_list_n) == site]), 0)
   
@@ -448,16 +449,17 @@ for(i in seq_along(site_list)){
                   subplot(plot_list_n[names(plot_list_n) == site][1:num_plots_n],
                           titleY = TRUE, titleX = FALSE, #margin = 0.05,
                           nrows = ifelse(num_plots_n > 4, 3, 2),
-                          margin = c(0.05, 0.05, 0.05, 0.05)) |> 
-                  layout(legend = list(x = 0, y = ifelse(num_plots_n > 4, -0.05, -0.08),
-                         orientation = "h"))} else {NULL}
+                          margin = c(0.05, 0.05, 0.05, 0.05)) #|> 
+                  #layout(legend = list(x = 0, y = ifelse(num_plots_n > 4, -0.05, -0.08),
+                  #       orientation = "h"))
+    } else {NULL}
   
-  for (i in 1:(num_plots_n - 1)){
-  subplots_n$x$data[[i]]$showlegend <- FALSE #site (line/markers)
-  subplots_n$x$data[[length(subplots_n$x$data)]]$showlegend <- FALSE #threshold line
-  #subplots_n$x$data[[length(subplots_n$x$data)]]$name <- "WQ Threshold" #set name
-  }
-  
+  # for (i in 1:(num_plots_n - 1)){
+  # subplots_n$x$data[[i]]$showlegend <- FALSE #site (line/markers)
+  # subplots_n$x$data[[length(subplots_n$x$data)]]$showlegend <- FALSE #threshold line
+  # #subplots_n$x$data[[length(subplots_n$x$data)]]$name <- "WQ Threshold" #set name
+  # }
+  # 
   #++++++++++++++++++ ENDED HERE +++++++++++++++++++++
   # The legend for the boxplots is still printing duplicates
   #+++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -465,6 +467,8 @@ for(i in seq_along(site_list)){
   # set up conditional eval in knit tabs below
   subplot_n_eval = ifelse(is.null(subplots_n), FALSE, TRUE) 
   subplot_n_bands = ifelse(subplot_n_eval == TRUE & plottype == 'bands', TRUE, FALSE)
+  subplot_n_bandsF = ifelse(subplot_n_bands == TRUE, FALSE, TRUE)
+  
 ##------------------------------------------------------------------------------
 ## Knit tabs                           
 ##------------------------------------------------------------------------------
@@ -538,6 +542,13 @@ for(i in seq_along(site_list)){
 
       "```{r fig.height=0.18, fig.width = 9.2, echo = FALSE, dpi=300, eval = subplot_n_bands}\n",
       "legg",
+      "\n",
+      "```\n",
+      
+      "\n",
+      
+      "```{r fig.height=0.18, fig.width = 9.2, echo = FALSE, dpi=300, eval = subplot_n_bandsF}\n",
+      "legbox",
       "\n",
       "```\n",
       

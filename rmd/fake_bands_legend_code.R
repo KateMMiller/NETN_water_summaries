@@ -1,5 +1,5 @@
 #-----------------------------------------------------
-# Make fake plots to generate legend waterbands plots, then save legend as image
+# Make fake plots to generate legend waterbands plots and waterboxplots
 #-----------------------------------------------------
 library(ggplot2)
 library(ggpubr)
@@ -12,12 +12,14 @@ full_data = data.frame(month = 1:5,
                          factor(c("Historic range", "Hist. 95% range", "Hist. 50% range",
                                   "Hist. median", "WQ threshold"),
                                 levels = c("Historic range", "Hist. 95% range", "Hist. 50% range",
-                                           "Hist. median", "WQ threshold")))
+                                           "Hist. median", "WQ threshold")),
+                       grp = c(rep('g1', 5)))
 
 point_data = data.frame(month = c(1, 3),
                         val = c(5, 7),
                         var = as.factor(c("Current value", "Poor WQ value")),
-                        type = 'point')
+                        type = 'point', 
+                        grp = as.factor(c("Current value", "Poor WQ value")))
 
 fake_bands <-
   ggplot(full_data, aes(x = month, y = val))+
@@ -114,3 +116,39 @@ legg <- as_ggplot(
 
 #ggsave("./rmd/waterband_leg.pdf", as_ggplot(leg), width = 12, height = 0.25)
 #ggsave("./rmd/waterband_leg.png", as_ggplot(leg), width = 12, height = 0.3)
+
+
+fake_boxplots <-
+ggplot(full_data, aes(x = as.factor(grp), y = val, fill = grp, color = grp))+#, group = grp))+
+  labs(y = NULL, x = NULL, title = NULL) +
+  geom_boxplot(alpha = 0.85, lwd = 0.75) +
+  scale_fill_manual(name = NULL, labels = c("Historic range"),
+                    values = c("#1378b5"))+
+  scale_color_manual(name = NULL, labels = c("Historic range"),
+                     values = c("#1378b5"))+
+  theme(legend.position = 'bottom',
+        legend.key = element_blank())
+
+
+fake_lines <-
+  ggplot(full_data, aes(x = month, y = val, color = grp, fill = grp, linetype = grp)) +
+  geom_line(aes(linetype = grp), lty = 'dashed', size = 1) +
+  scale_color_manual(name = NULL, values = "black",
+                     labels = "WQ threshold", breaks = "g1") +
+  scale_linetype_manual(name = NULL, values = "dashed",
+                     labels = "WQ threshold", breaks = "g1") +
+  theme(legend.position = 'bottom',
+        legend.key = element_blank(),
+        legend.key.width = unit(1, 'cm'))
+
+
+leg_box <- as_ggplot(get_legend(fake_boxplots))
+leg_lines <- as_ggplot(get_legend(fake_lines))
+leg_points <- as_ggplot(get_legend(fake_points))
+
+legbox <- as_ggplot(
+  grid.arrange(grobs = list(leg_box, leg_lines, leg_points),
+               nrow = 1, ncol = 3,
+               heights = c(0.25),
+               widths = c(0.25, 0.25, 1)))
+
