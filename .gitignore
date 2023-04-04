@@ -9,7 +9,10 @@ ah_small_flat_4c_blackbkgr_k100.tif
 ah_small_flat_4c_blackbkgr_k100.svg
 rmd/images/ah_small_flat_4c_blackbkgr_k100.jpg
 rmd/images/ah_small_flat_4c_blackbkgr_k100.png
-*.html
 !header_manual.html
 !footer.html
 figure
+testing_scripts/
+rmd/output/
+site_photos/
+*.html
