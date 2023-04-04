@@ -79,27 +79,28 @@ h5 {
 .banner{
   background: black;
   height: 105px;
-  width: auto;
+  width: 920px;
   margin-left: auto;
   margin-right: auto;
 }
 
 .header{
  height: 100px;
- width: 930px;
+ /*width: 930px;*/
+ width: 910px;
  margin-left: auto;
  margin-right: auto;
 }
 
 #col-left-header{
   float:left;
-  width: 68%;
+  width: 66%;
   padding: 5px 0;
 }
 
 #col-right-header{
   float:right;
-  width: 7%;
+  width: 8%;
   padding: 5px 0;
 }
 
@@ -115,7 +116,7 @@ h5 {
   height: 90px;
   position: relative;
 }
- 
+
 .header h5 {
   position: relative;
   text-align: left;
