@@ -9,7 +9,7 @@ output:
       after_body: "footer.html"
     self_contained: yes
 params:
-  park: WEFA # 4-letter park code
+  park: MABI # 4-letter park code
   from: 2006 # first year of data
   current: 2022 # current year of data
   nutrient: TRUE # T plots nutrients; F for in situ only. If not complete for season TRUE may fail
