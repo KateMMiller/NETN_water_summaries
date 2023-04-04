@@ -9,11 +9,11 @@ output:
       after_body: "footer.html"
     self_contained: yes
 params:
-  park: MIMA # 4-letter park code
+  park: WEFA # 4-letter park code
   from: 2006 # first year of data
   current: 2022 # current year of data
   nutrient: TRUE # T plots nutrients; F for in situ only. If not complete for season TRUE may fail
-  plottype: bands # options: 'bands' or 'boxplot' for nutrients
+  plottype: boxplot # options: 'bands' or 'boxplot' for nutrients
 ---
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, fig.pos = "h")
@@ -477,7 +477,7 @@ for(i in seq_along(site_list)){
   # set up conditional eval in knit tabs below
   subplot_n_eval = ifelse(is.null(subplots_n), FALSE, TRUE) 
   subplot_n_bands = ifelse(subplot_n_eval == TRUE & plottype == 'bands', TRUE, FALSE)
-  subplot_n_bandsF = ifelse(subplot_n_bands == TRUE, FALSE, TRUE)
+  subplot_n_box = ifelse(subplot_n_eval == TRUE & plottype != 'bands', TRUE, FALSE)
   
 ##------------------------------------------------------------------------------
 ## Knit tabs                           
@@ -557,7 +557,7 @@ for(i in seq_along(site_list)){
       
       "\n",
       
-      "```{r fig.height=0.18, fig.width = 9.2, echo = FALSE, dpi=300, eval = subplot_n_bandsF}\n",
+      "```{r fig.height=0.18, fig.width = 9.2, echo = FALSE, dpi=300, eval = subplot_n_box}\n",
       "legbox",
       "\n",
       "```\n",
