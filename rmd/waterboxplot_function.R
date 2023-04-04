@@ -35,7 +35,7 @@ waterboxplot <- function(data = wdata_full, parkcode, sitecode, charname) {
     showgrid = FALSE,
     autotick = TRUE,
     ticks = "outside",
-    range = c(range(wdat$ValueCen))
+    range = c(range(wdat$ValueCen)[1] * 0.99, range(wdat$ValueCen)[2] * 1.1 )
   )
   
   # Set x axis style for plotly
@@ -67,7 +67,7 @@ waterboxplot <- function(data = wdata_full, parkcode, sitecode, charname) {
     } else {
       wdat_curr[wdat_curr$pcolor == "Poor WQ value", ]}
   
-    p <- plot_ly(wdat_hist, x = ~month_num, y = ~ValueCen) |> 
+    p <- plot_ly(wdat_hist, x = ~month_num, y = ~ValueCen, width = 900, height = 650) |> 
     
     # Boxplots historic range
     add_boxplot(boxpoints = "outliers", name = "Historic range", 

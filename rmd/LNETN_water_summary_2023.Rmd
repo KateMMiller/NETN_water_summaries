@@ -12,8 +12,8 @@ params:
   park: MIMA # 4-letter park code
   from: 2006 # first year of data
   current: 2022 # current year of data
-  nutrient: TRUE # T plots nutrients, but should be complete for season
-  plottype: boxplot # plot bands or boxplot for nutrients
+  nutrient: TRUE # T plots nutrients; F for in situ only. If not complete for season TRUE may fail
+  plottype: bands # options: 'bands' or 'boxplot' for nutrients
 ---
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, fig.pos = "h")
@@ -176,16 +176,9 @@ comp_plots_p <- purrr::map2(char_list_p_comp, legend_list_p,
                                       legend = .y) + 
                               labs(color = NULL, fill = NULL, 
                                    shape = NULL, linetype = NULL),
-                            tooltip = 'text')) |> 
+                            tooltip = 'text', width = 900, height = 650)) |> 
                 set_names(char_list_p_comp)
                 #name plots to refer to them by char name
-
-# leg_comp_p <- as_ggplot(get_legend(
-#   watersite_comps(netnwd, year = current, parkcode = parkcode,
-#                   sitecode = site_list, 
-#                   charname = char_list_p[length(char_list_p)],
-#                   legend = 'bottom'# take last instead of discharge
-#                   )))
 
 # MABI has stream and pond sites in comparison, so have fewer comp plots
 hts = if(length(comp_plots_p) <= 4){c(0.5, 0.5)} else {c(0.325, 0.35, 0.325)}
@@ -235,7 +228,7 @@ comp_plots_n <- purrr::map2(char_list_n, legend_list_n,
                                           charname = .x,
                                           legend = .y)+ 
                               labs(color = NULL, fill = NULL, shape = NULL, linetype = NULL),
-                            tooltip = 'text')) |> 
+                         tooltip = 'text', width = 900, height = 325)) |> 
                 set_names(char_list_n) #name plots to refer to them by char name
 
 # Use plot list to create matrix of plots (plotly subplot)
@@ -285,7 +278,7 @@ fig_cap_p <- htmltools::withTags(body(
 cat(as.character(fig_cap_p))
 ```
 
-```{r p_site_comp_plots, results = 'show', fig.height = 7.5, eval = show_comp}
+```{r p_site_comp_plots, results = 'show', eval = show_comp}
 
 comp_plots_p_final
 
@@ -320,7 +313,7 @@ fig_cap_n <- htmltools::withTags(body(
 if(nutrient == TRUE) {cat(as.character(fig_cap_n))}
 ```
 
-```{r n_site_comp_plots, results = 'show', fig.height = 4.5, eval = show_comp}
+```{r n_site_comp_plots, results = 'show', eval = show_comp}
 if(nutrient == TRUE) {comp_plots_n_final}
 ```
 
@@ -414,8 +407,23 @@ for(i in seq_along(site_list)){
                                         Water quality thresholds are derived from state surface water quality 
                                         standards. Parameter abbreviations and additional information are
                                         defined in "About the Data".'))
+  
   # Nutrient parameters (boxplot) figure caption
-  fig_cap_n <- htmltools::withTags(body('The boxplots below show historic ranges for', site_name, 
+  fig_cap_n <- if(plottype == 'bands'){
+    htmltools::withTags(body('The plots below show historic ranges for', site_name, 
+                             'based on the range of measurements collected from',
+                             from, 'to', to, 'for each month. The outermost band represents the
+                             historic maximum and minimum value collected for each month.
+                             The second inner band represents the 95% range of historic values
+                             by month. The innermost band represents the 50% range of historic
+                             values by month. If bands are missing for a given month, insufficient
+                             samples are present to assess variability. The points represent the most 
+                             recent measurements collected in', current, 'by month. 
+                             Water quality thresholds are derived from state surface water quality 
+                             standards. Parameter abbreviations and additional information are
+                             defined in "About the Data".'))
+  } else {
+    htmltools::withTags(body('The boxplots below show historic ranges for', site_name, 
                                         'based on the range of measurements collected from', from, 'to', to, 
                                         'for each month. The lower and upper box boundaries represent the 
                                         25th (Q1) and 75th (Q3) percentiles, respectively, and together show 
@@ -429,18 +437,30 @@ for(i in seq_along(site_list)){
                                         from most disturbed sites. 
                                         Parameter abbreviations and additional information are defined in
                                         "About the Data".'))
+  }
   
   # Fig heights need to be separate params because the tab template doesn't allow duplicates
-  fig_height_p <- ifelse(num_plots_p > 4, 6.5, 4.5)
-  fig_height_n <- ifelse(num_plots_n > 4, 6.5, 4.5)
+  fig_height_p <- ifelse(num_plots_p > 4, 7.5, 5.3)
+  fig_height_n <- case_when(num_plots_n < 3 ~ 2.7,
+                            between(num_plots_n, 3, 4) ~ 5.3, 
+                            num_plots_n > 4 ~ 7.5,
+                            TRUE ~ 2.7)
   fig_width <- 9.3
+  
+  num_rows_p = case_when(num_plots_p <= 2 ~ 1,
+                         between(num_plots_p, 3, 4) ~ 2,
+                         num_plots_p > 4 ~ 3)
+  
+  num_rows_n = case_when(num_plots_n <= 2 ~ 1,
+                         between(num_plots_n, 3, 4) ~ 2,
+                         num_plots_n > 4 ~ 3)
   
   # Physical subplot
   subplots_p <- subplot(plot_list_p[names(plot_list_p) == site][1:num_plots_p],
                         titleY = TRUE, titleX = FALSE, #margin = 0.05,
-                        nrows = ifelse(num_plots_p > 4, 3, 2),
+                        nrows = num_rows_p,
                         heights = if(num_plots_p > 4) {c(0.3,0.35,0.3)},
-                        margin = c(0.05, 0.05, 0.05, 0.05))# |> 
+                        margin = c(0.05, 0.05, 0.03, 0.025))# |> 
                 #layout(legend = list(x = 0, y = ifelse(num_plots_p>4, -0.05, -0.08),
                 #       orientation = "h"))
   
@@ -448,8 +468,8 @@ for(i in seq_along(site_list)){
   subplots_n <- if(nutrient == TRUE & num_plots_n > 0){
                   subplot(plot_list_n[names(plot_list_n) == site][1:num_plots_n],
                           titleY = TRUE, titleX = FALSE, #margin = 0.05,
-                          nrows = ifelse(num_plots_n > 4, 3, 2),
-                          margin = c(0.05, 0.05, 0.05, 0.05)) #|> 
+                          nrows = num_rows_n,
+                          margin = c(0.05, 0.05, 0.03, 0.025)) #|> 
                   #layout(legend = list(x = 0, y = ifelse(num_plots_n > 4, -0.05, -0.08),
                   #       orientation = "h"))
     } else {NULL}

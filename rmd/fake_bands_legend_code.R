@@ -19,7 +19,8 @@ point_data = data.frame(month = c(1, 3),
                         val = c(5, 7),
                         var = as.factor(c("Current value", "Poor WQ value")),
                         type = 'point', 
-                        grp = as.factor(c("Current value", "Poor WQ value")))
+                        grp = as.factor(c("Current value", "Poor WQ value")),
+                        grp2 = c(rep("Historic outlier", 2)))
 
 fake_bands <-
   ggplot(full_data, aes(x = month, y = val))+
@@ -142,13 +143,27 @@ fake_lines <-
         legend.key.width = unit(1, 'cm'))
 
 
+fake_outs <-
+  ggplot(point_data, aes(x = month, y = val, color = grp2, shape = grp2)) +
+  geom_point(aes(shape = grp2, color = grp2), shape = 8, size = 2) +
+  labs(y = NULL, x = NULL, title = NULL) + 
+  scale_color_manual(breaks = "Historic outlier",
+                     values = "#1378b5",
+                     labels = "Historic outlier",
+                     name = NULL)+
+  theme(legend.position = 'bottom',
+        legend.key = element_blank())
+
 leg_box <- as_ggplot(get_legend(fake_boxplots))
 leg_lines <- as_ggplot(get_legend(fake_lines))
 leg_points <- as_ggplot(get_legend(fake_points))
+leg_outs <- as_ggplot(get_legend(fake_outs))
 
-legbox <- as_ggplot(
-  grid.arrange(grobs = list(leg_box, leg_lines, leg_points),
-               nrow = 1, ncol = 3,
+legbox <- 
+  as_ggplot(
+  grid.arrange(grobs = list(leg_box, leg_lines, leg_points, leg_outs),
+               nrow = 1, ncol = 6,
                heights = c(0.25),
-               widths = c(0.25, 0.25, 1)))
+               widths = c(1, 1, 1.8, 0.8, 0.6, 1),
+               layout = c(NA, 1, 2, 3, 4, NA)))
 
