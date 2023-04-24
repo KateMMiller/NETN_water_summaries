@@ -6,11 +6,8 @@ library(purrr)
 library(knitr)
 library(rmarkdown)
 
-
 #----- Generate water data files- must do each time new data are to be incorporated
-# library(NCRNWater)
-# 
-# compileNETNdata(path = "./Data",
+# NCRNWater::compileNETNdata(path = "./data",
 #                 export = TRUE, surface = TRUE, active_site = TRUE,
 #                 active_metric = TRUE, restricted = TRUE)
 
